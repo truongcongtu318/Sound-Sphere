@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "950265894925",
+    "project_id": "soundsphere-42731",
+    "storage_bucket": "soundsphere-42731.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:950265894925:android:9a7d1216cc4cdd2f4c9d44",
+        "android_client_info": {
+          "package_name": "com.example.soundsphere"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "950265894925-np24h4e4me6ianqhale4ls29j0cjujqv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.soundsphere",
+            "certificate_hash": "ae8053ada45ea3337c8aead5e43c71f3f846b9ed"
+          }
+        },
+        {
+          "client_id": "950265894925-vgfd0foee2ebtf0ejvccgvrueke3fusr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoogZ9CzXb0hqaVvs5R3-j838wX3_kP0o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "950265894925-vgfd0foee2ebtf0ejvccgvrueke3fusr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

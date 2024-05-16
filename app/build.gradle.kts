@@ -3,7 +3,8 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
-    //id("com.google.gms.google-services")
+    id("com.google.gms.google-services")
+//    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -63,6 +64,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.firebase.auth)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -107,11 +109,12 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
 
     //Google auth dependency
-//    implementation ("com.google.android.gms:play-services-auth:21.1.1")
-//
-//    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation ("com.google.android.gms:play-services-auth:21.1.1")
 
     val lifecycle_version = "2.7.0"
+
+    implementation ("com.facebook.android:facebook-login:latest.release")
+
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version")

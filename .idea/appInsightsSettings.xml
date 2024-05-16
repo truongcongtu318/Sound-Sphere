@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.soundsphere" />
+                  <option name="mobileSdkAppId" value="1:950265894925:android:9a7d1216cc4cdd2f4c9d44" />
+                  <option name="projectId" value="soundsphere-42731" />
+                  <option name="projectNumber" value="950265894925" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

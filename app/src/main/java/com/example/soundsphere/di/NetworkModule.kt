@@ -1,9 +1,12 @@
 package com.example.soundsphere.di
 
 import com.example.soundsphere.data.remote.SoundSphereApiService
+import com.example.soundsphere.data.repository.AuthRepository
+import com.example.soundsphere.data.repository.AuthRepositoryImpl
 import com.example.soundsphere.data.repository.SoundSphereApiRepository
 import com.example.soundsphere.data.repository.SoundSphereApiRepositoryImpl
 import com.example.soundsphere.utils.Constants
+import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,8 +34,18 @@ class NetworkModule {
         return SoundSphereApiRepositoryImpl(apiService)
     }
 
+    @Singleton
     @Provides
     fun provideSoundSphereApiService(retrofit: Retrofit): SoundSphereApiService {
         return retrofit.create(SoundSphereApiService::class.java)
+    }
+    @Singleton
+    @Provides
+    fun providesFirebaseAuth() = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun providesRepositoryImpl(firebaseAuth: FirebaseAuth): AuthRepository {
+        return AuthRepositoryImpl(firebaseAuth)
     }
 }

@@ -2,8 +2,8 @@ package com.example.soundsphere.utils
 
 class Constants {
     companion object {
-        const val RAPID_API_KEY = "3f1f188135msh531eb0dbfa09acep14fc98jsn6a050de9601a"
-        const val RAPID_API_HOST = "genius-song-lyrics1.p.rapidapi.com"
-        const val BASE_URL = "https://genius-song-lyrics1.p.rapidapi.com/"
+        const val BASE_URL = "https://api.spotify.com/"
+        const val AUTHORIZATION_HEADER = "BQBltDD2OIJg-az5LJ0wtGvyb_GUoXFGZdSFpr5hmOvqmgluT9ihODgrJxNKo850sZP4f4UzEdkX46IUFd1QiRL3UHU1Mm_Ayq4F6EvhrZtyS5vSozw"
+        const val CLIENT_ID = "950265894925-vgfd0foee2ebtf0ejvccgvrueke3fusr.apps.googleusercontent.com"
     }
 }
