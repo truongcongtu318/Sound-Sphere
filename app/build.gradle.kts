@@ -4,7 +4,6 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
     id("com.google.gms.google-services")
-//    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -13,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.soundsphere"
-        minSdk = 29
+        minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -62,9 +61,11 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.firebase.auth)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
-    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore.ktx)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -78,7 +79,7 @@ dependencies {
 
     // Room
     implementation("androidx.room:room-ktx:2.6.1")
-    //kapt("androidx.room:room-compiler:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-paging:2.6.1")
 
     // Dagger - Hilt
@@ -92,6 +93,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Timber
+    implementation ("com.jakewharton.timber:timber:4.7.1")
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -111,22 +115,15 @@ dependencies {
     //Google auth dependency
     implementation ("com.google.android.gms:play-services-auth:21.1.1")
 
-    val lifecycle_version = "2.7.0"
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
 
-    implementation ("com.facebook.android:facebook-login:latest.release")
+    // Glide
+    implementation ("com.github.bumptech.glide:glide:4.11.0")
+    kapt ("com.github.bumptech.glide:compiler:4.11.0")
 
-
-    // ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version")
-    // ViewModel utilities for Compose
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_version")
-    // LiveData
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version")
-    // Lifecycles only (without ViewModel or LiveData)
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_version")
-    // Lifecycle utilities for Compose
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_version")
-
-    // Saved state module for ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:$lifecycle_version")
+    implementation ("androidx.media3:media3-exoplayer:1.3.1")
+    implementation ("androidx.media3:media3-ui:1.3.1")
+    implementation ("androidx.media3:media3-common:1.3.1")
+    implementation ("androidx.media3:media3-session:1.3.1")
+    implementation ("com.google.android.exoplayer:extension-mediasession:2.17.0")
 }

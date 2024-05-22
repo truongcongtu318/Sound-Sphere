@@ -2,13 +2,10 @@ package com.example.soundsphere.ui.login
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soundsphere.data.repository.AuthRepository
 import com.example.soundsphere.utils.Resource
-import com.facebook.AccessToken
-import com.facebook.CallbackManager
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +43,11 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
+
+
+
+
     fun loginWithGoogle(credential: AuthCredential) = viewModelScope.launch {
         authRepository.loginWithGoogle(credential).collect{result ->
             when(result){
@@ -58,22 +60,8 @@ class LoginViewModel @Inject constructor(
                 is Resource.Success -> {
                     _googleState.value = GoogleLoginState(success = result.data)
                 }
-            }
-        }
-    }
 
-    fun loginWithFacebook(token: AccessToken) = viewModelScope.launch {
-        authRepository.loginWithFacebook(token).collect{result ->
-            when(result){
-                is Resource.Error -> {
-                    _facebookState.value = FacebookLoginState(error = result.msg.toString())
-                }
-                is Resource.Loading -> {
-                    _facebookState.value = FacebookLoginState(loading = true)
-                }
-                is Resource.Success -> {
-                    _facebookState.value = FacebookLoginState(success = result.data)
-                }
+                is Resource.Track -> TODO()
             }
         }
     }

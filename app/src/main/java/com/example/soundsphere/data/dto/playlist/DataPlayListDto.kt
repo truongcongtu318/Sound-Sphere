@@ -3,13 +3,11 @@ package com.example.soundsphere.data.dto.playlist
 data class DataPlayListDto(
     val collaborative: Boolean,
     val description: String,
-    val external_urls: ExternalUrls,
     val followers: Followers,
     val href: String,
     val id: String,
     val images: List<Image>,
     val name: String,
-    val owner: Owner,
     val primary_color: Any,
     val `public`: Boolean,
     val snapshot_id: String,

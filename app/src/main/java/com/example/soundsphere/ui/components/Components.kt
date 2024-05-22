@@ -52,7 +52,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.soundsphere.navigation.BottomBarRoutes
 import com.example.soundsphere.ui.theme.fontInter
-import com.example.soundsphere.ui.theme.linearBottom
 import com.example.soundsphere.ui.theme.roboto
 
 @Composable
@@ -132,20 +131,24 @@ fun SocialMediaLogIn(
 @Composable
 fun RoundAvatar(
     imageUrl: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     Image(
         painter = rememberAsyncImagePainter(
-            ImageRequest.Builder(LocalContext.current).data(data = imageUrl).apply(block = fun ImageRequest.Builder.() {
-                crossfade(true)
-            }).build()
+            ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                .apply(block = fun ImageRequest.Builder.() {
+                    crossfade(true)
+                }).build()
         ),
         contentDescription = "Avatar",
         modifier = modifier
             .size(48.dp)
-            .clip(CircleShape), // Làm tròn hình ảnh
-        contentScale = ContentScale.Crop // Giúp hình ảnh phù hợp với kích thước đã cho
-    )
+            .clip(CircleShape)
+            .clickable { onClick() },
+        contentScale = ContentScale.Crop,
+
+        )
 }
 
 @Composable
@@ -179,7 +182,9 @@ fun BottomBar(navController: NavHostController) {
         NavigationBar(
             containerColor = Color.Transparent,
             tonalElevation = 0.dp,
-            modifier = Modifier.align(Alignment.BottomCenter).background(linearBottom)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .background(Color(0xFF121212))
         ) {
             screens.forEach { screen ->
                 AddItem(
@@ -242,24 +247,30 @@ fun RowScope.AddItem(
 fun ImageBoxMedium(
     modifier: Modifier = Modifier,
     imageUrl: String,
-    text: String
+    text: String,
+    onClick: () -> Unit
 ) {
     Column {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .size(100.dp)
-                .background(color = Color.Transparent, shape = RoundedCornerShape(28.dp))
+                .background(
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(28.dp)
+                )
+                .clickable { onClick() }
         ) {
 
             Image(
                 painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(LocalContext.current).data(data = imageUrl).apply(block = fun ImageRequest.Builder.() {
-                        crossfade(true)
-                    }).build()
+                    ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                        .apply(block = fun ImageRequest.Builder.() {
+                            crossfade(true)
+                        }).build()
                 ),
                 contentDescription = "Playlist Cover",
                 contentScale = ContentScale.Crop, // Dùng để ảnh vừa khít và che đầy box
-                modifier = Modifier
+                modifier = modifier
                     .height(100.dp)
                     .width(200.dp)
                     .clip(RoundedCornerShape(16.dp))
@@ -284,20 +295,23 @@ fun ImageBoxMedium(
 fun ImageBoxLarge(
     modifier: Modifier = Modifier,
     imageUrl: String,
-    text: String
+    text: String,
+    onClick: () -> Unit
 ) {
     Column {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .size(140.dp)
+                .clickable { onClick() }
                 .background(color = Color.Transparent, shape = RoundedCornerShape(28.dp))
         ) {
 
             Image(
                 painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(LocalContext.current).data(data = imageUrl).apply(block = fun ImageRequest.Builder.() {
-                        crossfade(true)
-                    }).build()
+                    ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                        .apply(block = fun ImageRequest.Builder.() {
+                            crossfade(true)
+                        }).build()
                 ),
                 contentDescription = "Playlist Cover",
                 contentScale = ContentScale.Crop, // Dùng để ảnh vừa khít và che đầy box
@@ -322,28 +336,86 @@ fun ImageBoxLarge(
 
 }
 
+
 @Composable
-fun ImageBoxExtraLarge(
+fun ImageBoxSongList(
     modifier: Modifier = Modifier,
     imageUrl: String,
     text: String
 ) {
     Box(
-        modifier = Modifier
-            .height(150.dp)
-            .width(280.dp)
-            .clip(RoundedCornerShape(16.dp))
+        modifier = modifier
     ) {
 
         Image(
             painter = rememberAsyncImagePainter(
-                ImageRequest.Builder(LocalContext.current).data(data = imageUrl).apply(block = fun ImageRequest.Builder.() {
-                    crossfade(true)
-                }).build()
+                ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                    .apply(block = fun ImageRequest.Builder.() {
+                        crossfade(true)
+                    }).build()
             ),
             contentDescription = "Playlist Cover",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize()
+            modifier = modifier.matchParentSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.8f),
+                            Color.Black.copy(alpha = 0.2f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
+
+        Text(
+            text = text,
+            modifier = modifier
+                .fillMaxHeight(1f)
+                .fillMaxWidth(fraction = 1f)
+                .padding(top = 200.dp),
+            fontFamily = fontInter,
+            fontWeight = FontWeight.Bold,
+            fontSize = 28.sp,
+            color = Color(0xBFFFFFFF),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun ImageBoxExtraLarge(
+    modifier: Modifier = Modifier,
+    imageUrl: String,
+    text: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(150.dp)
+            .width(280.dp)
+            .clickable { onClick() }
+
+    ) {
+
+        Image(
+            painter = rememberAsyncImagePainter(
+                ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                    .apply(block = fun ImageRequest.Builder.() {
+                        crossfade(true)
+                    }).build()
+            ),
+            contentDescription = "Playlist Cover",
+            contentScale = ContentScale.Crop,
+            modifier = modifier.matchParentSize()
         )
 
         Box(
@@ -363,7 +435,7 @@ fun ImageBoxExtraLarge(
         // Văn bản
         Text(
             text = text,
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxHeight()
                 .fillMaxWidth(fraction = 0.5f)
                 .align(alignment = Alignment.CenterStart)
@@ -378,6 +450,29 @@ fun ImageBoxExtraLarge(
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start
+        )
+    }
+}
+
+@Composable
+fun ImageBoxPlay(
+    modifier: Modifier = Modifier,
+    imageUrl: String,
+) {
+    Box(
+        modifier = modifier
+            .size(380.dp)
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(
+                ImageRequest.Builder(LocalContext.current).data(data = imageUrl)
+                    .apply(block = fun ImageRequest.Builder.() {
+                        crossfade(true)
+                    }).build()
+            ),
+            contentDescription = "Playlist Cover",
+            contentScale = ContentScale.Crop,
+            modifier = modifier.matchParentSize()
         )
     }
 }

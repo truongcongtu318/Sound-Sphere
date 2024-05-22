@@ -1,49 +1,52 @@
 package com.example.soundsphere
 
-//import com.example.soundsphere.ui.theme.SoundSphereTheme
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.soundsphere.data.remote.SoundSphereApiService
 import com.example.soundsphere.navigation.NavGraph
-import com.example.soundsphere.ui.home.HomeViewModel
-import com.facebook.FacebookSdk
+import com.example.soundsphere.navigation.NavigationRoutes
+import com.example.soundsphere.ui.components.BottomBar
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.DelicateCoroutinesApi
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @Inject
-    lateinit var soundSphereApi: SoundSphereApiService
 
-    @OptIn(DelicateCoroutinesApi::class)
+
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
-        FacebookSdk.sdkInitialize(applicationContext)
         enableEdgeToEdge()
+
+
         setContent {
-            val viewModel: HomeViewModel = hiltViewModel()
             val navController = rememberNavController()
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
 
             Scaffold(
+                bottomBar = {
+                    if (currentRoute !in listOf(
+                            NavigationRoutes.Login.route
+                        )
+                    ) {
+                        BottomBar(navController = navController)
+                    }
+                }
             ) {
                 NavGraph(navController = navController)
-                Log.d("checkLogin", navController.currentDestination?.route.toString())
             }
-
-
         }
     }
+
 }
 
 
