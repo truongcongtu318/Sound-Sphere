@@ -340,7 +340,7 @@ fun ImageBoxLarge(
 @Composable
 fun ImageBoxSongList(
     modifier: Modifier = Modifier,
-    imageUrl: String,
+    imageUrl: String?,
     text: String
 ) {
     Box(

@@ -3,6 +3,7 @@ package com.example.soundsphere.ui.song_list
 import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,11 +21,14 @@ import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,28 +47,33 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.soundsphere.R
-import com.example.soundsphere.data.dto.playlist.DataPlayListDto
+import com.example.soundsphere.data.dtodeezer.album.AlbumDto
+import com.example.soundsphere.data.dtodeezer.albumtracks.AlbumTrackDto
+import com.example.soundsphere.data.dtodeezer.playlist.PlayListDto
+import com.example.soundsphere.data.dtodeezer.playlisttracks.PlayListTrackDto
+import com.example.soundsphere.data.dtodeezer.track.TrackDto
+import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.components.ImageBoxSongList
+import com.example.soundsphere.ui.home.HomeViewModel
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @Composable
 fun SongListScreenPlayList(
-    id: String,
+    urlTrackList: String,
+    idPlayList: String,
     songListViewModel: SongListViewModel = hiltViewModel(),
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    val playListState = songListViewModel.playlistState.collectAsState()
 
-    LaunchedEffect(id) {
-        songListViewModel.getPlayListByIdData(id)
+    val playListTrackState = songListViewModel.playListTrackState.collectAsState()
+    val playListState = songListViewModel.playListState.collectAsState()
+    LaunchedEffect(Unit) {
+        songListViewModel.getPlayListTracks(urlTrackList)
+        songListViewModel.getPlayList(idPlayList)
     }
-
-
-    val trackPlayList = playListState.value.isSuccessDataPlayList
-    Log.d("TAG", "SongListScreenPlayList: ${playListState.value.isSuccessDataPlayList}")
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -71,26 +81,43 @@ fun SongListScreenPlayList(
     ) {
         Column(
             modifier = modifier
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (playListState.value.isLoading || playListTrackState.value.isLoading) {
+                CircularProgressIndicator()
+            }
+        }
+        Column(
+            modifier = modifier
                 .fillMaxWidth()
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Top
         ) {
-            TopUpList(modifier, playlist = trackPlayList)
-
-            SongList(
-                modifier,
-                playlist = trackPlayList,
-            )
+            val playListTrack = playListTrackState.value.isSuccessful
+            val playlist = playListState.value.isSuccessful
+            if (playlist != null) {
+                TopUpList(modifier, playlist = playlist)
+            }
+            if (playListTrack != null) {
+                SongList(
+                    modifier,
+                    trackList = playListTrack,
+                    navController = navController,
+                )
+            }
         }
 
     }
 }
 
+@SuppressLint("RememberReturnType")
 @Composable
 private fun SongList(
     modifier: Modifier,
-    playlist: DataPlayListDto?,
-    songListViewModel: SongListViewModel = hiltViewModel(),
+    trackList: PlayListTrackDto,
+    navController: NavHostController
 ) {
     LazyColumn(
         modifier = modifier
@@ -99,69 +126,78 @@ private fun SongList(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        if (playlist != null) {
-            items(playlist.tracks.items ?: emptyList()) { item ->
-                val imageUrl = item.track.album.images.firstOrNull()!!.url
-                Row(
+        val tracks = trackList.data
+        val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
+        val lastUrl = "/500x500-000000-80-0-0.jpg"
+        items(tracks) { track ->
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(15.dp)
+            ) {
+
+                Image(
+
+                    painter = rememberAsyncImagePainter(
+                        ImageRequest.Builder(LocalContext.current)
+                            .data(data = baseUrl + track.md5_image + lastUrl)
+                            .apply(block = fun ImageRequest.Builder.() {
+                                crossfade(true)
+                            }).build()
+                    ),
+                    contentDescription = "Playlist Cover",
+                    contentScale = ContentScale.Crop,
+                    modifier = modifier
+                        .size(50.dp)
+                        .clip(shape = RoundedCornerShape(5.dp))
+                        .clickable {
+                            navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
+                        }
+                )
+
+                Column(
                     modifier = modifier
                         .fillMaxWidth()
-                        .height(70.dp)
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(15.dp)
+                        .fillMaxHeight(1f),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(data = imageUrl)
-                                .apply(block = fun ImageRequest.Builder.() {
-                                    crossfade(true)
-                                }).build()
-                        ),
-                        contentDescription = "Playlist Cover",
-                        contentScale = ContentScale.Crop,
-                        modifier = modifier
-                            .size(50.dp)
-                            .clip(shape = RoundedCornerShape(5.dp))
+                    Text(
+                        text = track.title ?: "",
+                        color = Color(0xFFFFFFFF),
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = fontInter,
+                        fontSize = 16.sp,
+                        letterSpacing = 1.sp
                     )
-                    Column(
-                        modifier = modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(1f),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Text(
-                            text = item.track.name ?: "",
-                            color = Color(0xFFFFFFFF),
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = fontInter,
-                            fontSize = 16.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = item.track.artists.firstOrNull()?.name ?: "",
-                            color = Color(0x80FFFFFF),
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = fontInter,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            fontSize = 16.sp,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
 
+                    Text(
+                        text = track.artist.name ?: "",
+                        color = Color(0x80FFFFFF),
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = fontInter,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 16.sp,
+                        letterSpacing = 1.sp
+                    )
+
+                }
             }
+
         }
     }
+
 }
 
 
 @Composable
 private fun TopUpList(
     modifier: Modifier,
-    playlist: DataPlayListDto?
+    playlist: PlayListDto,
 ) {
     Column(
         modifier = modifier
@@ -170,16 +206,14 @@ private fun TopUpList(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        if (playlist != null) {
-            ImageBoxSongList(
-                imageUrl = playlist.tracks.items.first().track.album.images.firstOrNull()!!.url,
-                text = playlist.tracks.items.firstOrNull()!!.track.name.uppercase(),
-                modifier = modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .clip(shape = RoundedCornerShape(0.dp))
-            )
-        }
+        ImageBoxSongList(
+            imageUrl = playlist.picture_big,
+            text = playlist.title,
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .clip(shape = RoundedCornerShape(0.dp))
+        )
     }
     Column(modifier = modifier.padding(20.dp)) {
         Row(
@@ -187,30 +221,26 @@ private fun TopUpList(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (playlist != null) {
-                Text(
-                    text = "Type: ${playlist.tracks.items.firstOrNull()!!.track.type}",
-                    color = Color(0xBFFFFFFF),
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = roboto,
-                    fontSize = 16.sp
-                )
-            }
+            Text(
+                text = "Type: ${playlist.type}",
+                color = Color(0xBFFFFFFF),
+                fontWeight = FontWeight.Medium,
+                fontFamily = roboto,
+                fontSize = 16.sp
+            )
             Image(
                 painter = painterResource(id = R.drawable.ellipse),
                 contentDescription = null,
                 modifier = modifier.size(5.dp)
             )
 
-            if (playlist != null) {
-                Text(
-                    text = "${playlist.tracks.items.size} songs",
-                    color = Color(0xBFFFFFFF),
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = roboto,
-                    fontSize = 16.sp
-                )
-            }
+            Text(
+                text = "${playlist.tracks.data.size} songs",
+                color = Color(0xBFFFFFFF),
+                fontWeight = FontWeight.Medium,
+                fontFamily = roboto,
+                fontSize = 16.sp
+            )
 
         }
 

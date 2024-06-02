@@ -5,5 +5,6 @@ sealed class NavigationRoutes(val route: String) {
     object Profile : NavigationRoutes("profile")
     object SongList : NavigationRoutes("songlist")
     object SongListPlayList : NavigationRoutes("songlistplaylist")
+    object SongListArtist : NavigationRoutes("songlistartist")
     object PlayTrack : NavigationRoutes("playtrack")
 }

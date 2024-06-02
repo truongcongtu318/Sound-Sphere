@@ -151,7 +151,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun YourLibrary(modifier: Modifier) {
+fun YourLibrary(modifier: Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()

@@ -37,6 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.soundsphere.data.dtodeezer.chart.Album
+import com.example.soundsphere.data.dtodeezer.chart.Albums
+import com.example.soundsphere.data.dtodeezer.chart.Artists
+import com.example.soundsphere.data.dtodeezer.chart.Playlists
+import com.example.soundsphere.data.dtodeezer.chart.Podcasts
+import com.example.soundsphere.data.dtodeezer.chart.Tracks
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.components.ImageBoxExtraLarge
 import com.example.soundsphere.ui.components.ImageBoxLarge
@@ -48,6 +54,8 @@ import com.example.soundsphere.ui.theme.roboto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 
 @OptIn(DelicateCoroutinesApi::class, ExperimentalFoundationApi::class)
@@ -62,17 +70,16 @@ fun HomeScreen(
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
-    val recommendationState = viewModel.recommendationState.collectAsState()
-    val newReleaseState = viewModel.newReleaseState.collectAsState()
-    val albumsState = viewModel.albumsState.collectAsState()
-    val featurePlayListState = viewModel.playlistFeatureState.collectAsState()
-    val profileState = profileViewModel.profileState.collectAsState()
-    val albumByIdState = viewModel.albumByIdState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val charts = viewModel.chartState.collectAsState()
-    Log.d("123", charts.value.toString())
+    val profileState = profileViewModel.profileState.collectAsState()
+    val chartState = viewModel.chartState.collectAsState()
 
+    val chartTracks = chartState.value.isSuccessful?.tracks
+    val chartAlbums = chartState.value.isSuccessful?.albums
+    val chartPlaylists = chartState.value.isSuccessful?.playlists
+    val chartArtists = chartState.value.isSuccessful?.artists
+    val chartPodcasts = chartState.value.isSuccessful?.podcasts
 
     Scaffold(
         modifier = modifier
@@ -85,7 +92,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (recommendationState.value.isLoading || newReleaseState.value.isLoading || albumsState.value.isLoading) {
+            if (chartState.value.isLoading) {
                 CircularProgressIndicator()
             }
         }
@@ -98,28 +105,28 @@ fun HomeScreen(
                 TopUpHome(modifier, profileState, navController)
             }
             item {
-                RecommendationList(modifier, recommendationState, navController, scope, context)
+                TopTrackList(modifier, chartTracks, navController, scope)
             }
             item {
-                NewReleaseList(modifier, newReleaseState, navController, scope, context)
+                TopAlbumList(modifier, chartAlbums, navController, scope)
             }
             item {
-                MixesForYouList(modifier, albumsState, navController, scope, context)
+                TopPlaylistsList(modifier, chartPlaylists, navController, scope)
             }
             item {
-                PlayListForYou(modifier, featurePlayListState, navController, scope, context)
+                TopArtistList(modifier, chartArtists, navController, scope)
             }
         }
     }
 }
 
+
 @Composable
-private fun PlayListForYou(
+private fun TopArtistList(
     modifier: Modifier = Modifier,
-    featurePlayListState: State<FeaturePlayListState>,
+    chartArtists: Artists?,
     navController: NavHostController,
     scope: CoroutineScope,
-    context: Context
 ) {
     Column(
         modifier = modifier
@@ -128,7 +135,7 @@ private fun PlayListForYou(
             .padding(horizontal = 20.dp)
     ) {
         Text(
-            text = "Feature Playlist For You",
+            text = "Top Artists",
             color = Color(0xBFFFFFFF),
             fontFamily = roboto,
             fontWeight = FontWeight.Medium,
@@ -140,70 +147,20 @@ private fun PlayListForYou(
             contentPadding = PaddingValues(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (featurePlayListState.value.isSuccessDataPlayListFeature != null) {
-                val playlists =
-                    featurePlayListState.value.isSuccessDataPlayListFeature!!.playlists.items
-                items(playlists.size) { result ->
-                    val playlist = playlists[result]
-                    val playlistImages = playlist.images
-                    if (playlistImages.isNotEmpty()) {
-                        val imageUrl =
-                            playlistImages.first().url
-                        ImageBoxLarge(
-                            imageUrl = imageUrl,
-                            text = playlist.name
-                        ) {
-                            val id = playlist.id
-                            Log.d("id999", id)
-                            scope.launch {
-                                navController.navigate(NavigationRoutes.SongListPlayList.route + "/$id")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MixesForYouList(
-    modifier: Modifier,
-    albumsState: State<AlbumsState>,
-    navController: NavHostController,
-    scope: CoroutineScope,
-    context: Context
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-    ) {
-        Text(
-            text = "Mixes for you",
-            color = Color(0xBFFFFFFF),
-            fontFamily = roboto,
-            fontWeight = FontWeight.Medium,
-            fontSize = 27.sp,
-        )
-        LazyRow(
-            Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            if (albumsState.value.isSuccessDataAlbums != null) {
-                val albums = albumsState.value.isSuccessDataAlbums!!.albums
-                items(albums) { album ->
+            if (chartArtists != null) {
+                items(chartArtists.data) { artist ->
                     ImageBoxLarge(
-                        imageUrl = album.images.firstOrNull()!!.url,
-                        text = album.name
+                        imageUrl = artist.picture_xl,
+                        text = artist.name
                     ) {
-                        val id = album.id
+                        val urlTrackList = artist.tracklist
+                        val encodeUrlTrackList = encodeUrl(urlTrackList)
                         scope.launch {
-                            navController.navigate(NavigationRoutes.SongList.route + "/$id")
+                            scope.launch {
+                                navController.navigate("songlistartist/$encodeUrlTrackList")
+                            }
                         }
                     }
-
                 }
             }
         }
@@ -211,12 +168,11 @@ private fun MixesForYouList(
 }
 
 @Composable
-private fun NewReleaseList(
+private fun TopPlaylistsList(
     modifier: Modifier,
-    newReleaseState: State<NewReleaseState>,
+    chartPlaylists: Playlists?,
     navController: NavHostController,
     scope: CoroutineScope,
-    context: Context
 ) {
     Column(
         modifier = modifier
@@ -224,7 +180,51 @@ private fun NewReleaseList(
             .padding(horizontal = 20.dp)
     ) {
         Text(
-            text = "New releases",
+            text = "Top Playlists",
+            color = Color(0xBFFFFFFF),
+            fontFamily = roboto,
+            fontWeight = FontWeight.Medium,
+            fontSize = 27.sp,
+        )
+        LazyRow(
+            Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (chartPlaylists != null) {
+                items(chartPlaylists.data) { playlist ->
+                    ImageBoxLarge(
+                        imageUrl = playlist.picture_big,
+                        text = playlist.title
+                    ) {
+                        val urlTrackList = playlist.tracklist
+                        val idPlayList = playlist.id
+                        val encodeUrlTrackList = encodeUrl(urlTrackList)
+
+                        scope.launch {
+                            navController.navigate("songlistplaylist/$encodeUrlTrackList/$idPlayList")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopAlbumList(
+    modifier: Modifier,
+    chartAlbums: Albums?,
+    navController: NavHostController,
+    scope: CoroutineScope,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Text(
+            text = "Top Albums",
             color = Color(0xBFFFFFFF),
             fontFamily = roboto,
             fontWeight = FontWeight.Medium,
@@ -236,43 +236,39 @@ private fun NewReleaseList(
             contentPadding = PaddingValues(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (newReleaseState.value.isSuccessDataNewRelease != null) {
-                val newReleases =
-                    newReleaseState.value.isSuccessDataNewRelease!!.albums.items
-                Log.d("TAG", "HomeScreen1: ${newReleases.size}")
-                items(newReleases.size) { result ->
-                    val album = newReleases[result]
-                    val albumImages = album.images
-                    if (albumImages.isNotEmpty()) {
-                        val imageUrl =
-                            albumImages.first().url
-                        ImageBoxMedium(
-                            imageUrl = imageUrl,
-                            text = album.name
-                        ) {
-                            val id = album.id
-                            scope.launch {
-                                navController.navigate(NavigationRoutes.SongList.route + "/$id")
-                            }
+            if (chartAlbums != null) {
+                items(chartAlbums.data) { album ->
+                    ImageBoxMedium(
+                        imageUrl = album.cover_big,
+                        text = album.title
+                    ) {
+                        val urlTrackList = album.tracklist
+                        val urlAlbum = album.id
+                        val encodeUrlTrackList = encodeUrl(urlTrackList)
 
+                        scope.launch {
+                            navController.navigate("songlist/$encodeUrlTrackList/$urlAlbum")
                         }
                     }
                 }
-
             }
-        }
 
+        }
     }
+
+}
+
+
+fun encodeUrl(url: String): String {
+    return URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
 }
 
 @Composable
-private fun RecommendationList(
+private fun TopTrackList(
     modifier: Modifier,
-    recommendationState: State<RecommendationState>,
+    chartTrack: Tracks?,
     navController: NavHostController,
     scope: CoroutineScope,
-    context: Context,
-    viewModel: HomeViewModel = hiltViewModel()
 ) {
     Column(
         modifier = modifier
@@ -280,7 +276,7 @@ private fun RecommendationList(
             .padding(horizontal = 20.dp)
     ) {
         Text(
-            text = "Featuring Today",
+            text = "Top Tracks",
             color = Color(0xBFFFFFFF),
             fontFamily = roboto,
             fontWeight = FontWeight.Medium,
@@ -291,24 +287,18 @@ private fun RecommendationList(
             contentPadding = PaddingValues(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (recommendationState.value.isSuccessDataRecommendation != null) {
-                val tracks =
-                    recommendationState.value.isSuccessDataRecommendation!!.tracks
-                items(tracks.size) { item ->
-                    val track = tracks[item]
-                    val albumImages = track.album.images
-                    if (albumImages.isNotEmpty()) {
-                        val imageUrl =
-                            albumImages.first().url
-                        ImageBoxExtraLarge(
-                            imageUrl = imageUrl,
-                            text = track.album.name
-                        ) {
-                            val id = track.album.id
-                            Log.d("TAG", "RecommendationList: $id")
-                            scope.launch {
-                                navController.navigate(NavigationRoutes.SongList.route + "/$id")
-                            }
+            val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
+            val lastUrl = "/500x500-000000-80-0-0.jpg"
+            if (chartTrack != null) {
+                items(chartTrack.data) { track ->
+
+                    ImageBoxExtraLarge(
+                        imageUrl = baseUrl + track.md5_image + lastUrl,
+                        text = track.title
+                    ) {
+                        val id = track.id
+                        scope.launch {
+                            navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
                         }
                     }
                 }
@@ -377,8 +367,7 @@ private fun TopUpHome(
 }
 
 
-@Preview
-@Composable
-fun HomeScreenPreview() {
-
-}
+//@Preview
+//@Composable
+//fun HomeScreenPreview() {
+//

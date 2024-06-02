@@ -1,7 +1,9 @@
 package com.example.soundsphere.ui.play
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.util.Log
+import android.widget.MediaController.MediaPlayerControl
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,69 +44,74 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util.startForegroundService
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
 import androidx.navigation.NavHostController
 import com.example.soundsphere.R
+import com.example.soundsphere.player.service.JetAudioService
 import com.example.soundsphere.ui.components.ImageBoxPlay
+import com.example.soundsphere.ui.home.HomeViewModel
 import com.example.soundsphere.ui.song_list.SongListViewModel
 import com.example.soundsphere.ui.theme.fontInter
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
 import okhttp3.internal.concurrent.formatDuration
 
+@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("LogNotTimber")
 @Composable
 fun PlayScreen(
     navController: NavHostController,
     songListViewModel: SongListViewModel = hiltViewModel(),
+    homeViewModel: HomeViewModel = hiltViewModel(),
+    playViewModel: PlayViewModel = hiltViewModel(),
     id: String?,
+    urlTrackList: String?,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    LaunchedEffect(id) {
-        if (id != null) {
-            songListViewModel.getTrackById(id)
-        }
-    }
-    val trackByIdState = songListViewModel.trackByIdState.collectAsState()
+
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    var isServiceRunning = false
+    fun StartService(){
+        if (!isServiceRunning){
+            val intent = Intent(context, JetAudioService::class.java)
+            startForegroundService(context,intent)
+            isServiceRunning = true
+        }
+    }
+
+
+    val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
+    val lastUrl = "/500x500-000000-80-0-0.jpg"
+
+    val trackState = songListViewModel.trackState.collectAsState()
     var currentSecond by remember { mutableStateOf(0) }
-    val duration = 20f
 
-    var isPlaying by remember { mutableStateOf(false) }
+    val trackListState = homeViewModel.albumTracksState.collectAsState()
+    val trackList = trackListState.value.isSuccessful?.data
+    val track = trackState.value.isSuccessful
 
-    val tracks = trackByIdState.value.track
-    Log.d("999", "PlayScreen: ${trackByIdState.value}")
+    LaunchedEffect(Unit) {
+        if (id != null) {
+            songListViewModel.getTrack(id)
+        }
 
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    when (state) {
-                        Player.STATE_READY -> isPlaying = true
-                        Player.STATE_ENDED -> isPlaying = false
-                        Player.STATE_IDLE -> isPlaying = false
-                        Player.STATE_BUFFERING -> {} // Handle buffering state if needed
-                    }
-                }
-            })
+        if (urlTrackList != null) {
+            homeViewModel.getAlbumTracks(urlTrackList)
+            val dataTrack = trackList?.find { it.id == track?.id }
+            dataTrack?.also {
+                playViewModel.setCurrentTrackSelected(it)
+            }
+            playViewModel.loadTrackList(urlTrackList ?: "")
         }
     }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            player.release()
-        }
-    }
-
-    LaunchedEffect(tracks) {
-        tracks?.let {
-            player.setMediaItem(MediaItem.fromUri(it.preview_url.toUri()))
-            player.prepare()
-        }
-    }
-
-
 
     Column(
         modifier = modifier
@@ -113,14 +121,14 @@ fun PlayScreen(
     ) {
         Spacer(modifier = modifier.height(50.dp))
 
-        IconButton(
-            modifier = Modifier
-                .align(Alignment.Start)
-                .size(50.dp),
-            onClick = {}
-        ) {
+        IconButton(modifier = Modifier
+            .align(Alignment.Start)
+            .size(50.dp), onClick = {
+            navController.navigateUp()
+        }) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null,
+                imageVector = Icons.AutoMirrored.Filled.NavigateBefore,
+                contentDescription = null,
                 modifier = modifier.size(50.dp),
                 tint = Color(0xBFFFFFFF)
             )
@@ -134,19 +142,18 @@ fun PlayScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (tracks != null) {
+            if (track != null) {
                 ImageBoxPlay(
                     modifier = modifier
                         .size(380.dp)
                         .align(Alignment.CenterHorizontally),
-                    imageUrl = tracks.preview_url
-                        ?: "https://i.scdn.co/image/ab67616d0000b273d8601e15fa1b4351fe1fc6ae",
+                    imageUrl = (baseUrl + track.md5_image + lastUrl)
                 )
 
                 Spacer(modifier = modifier.height(40.dp))
 
                 Text(
-                    text = tracks.name,
+                    text = track.title_short,
                     color = Color(0xFFFFFFFF),
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Start,
@@ -159,7 +166,7 @@ fun PlayScreen(
                 Spacer(modifier = modifier.height(10.dp))
 
                 Text(
-                    text = tracks.artist ?: "Son Tung",
+                    text = track.artist.name,
                     color = Color(0xBFFFFFFF),
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Start,
@@ -175,13 +182,12 @@ fun PlayScreen(
             Spacer(modifier = modifier.height(0.dp))
 
             Slider(
-                value = currentSecond.toInt().toFloat(),
-                onValueChange = { currentSecond = it.toInt() },
-                valueRange = currentSecond.toFloat()..duration.toFloat(),
+                value = playViewModel.progress,
+                onValueChange = { playViewModel.onUiEvent(UIEvents.SeekTo(it)) },
+                valueRange = 1f..100f,
                 modifier = Modifier.padding(vertical = 0.dp),
                 colors = SliderDefaults.colors().copy(
-                    thumbColor = Color(0xBFFFFFFF),
-                    activeTrackColor = Color(0xBFFFFFFF)
+                    thumbColor = Color(0xBFFFFFFF), activeTrackColor = Color(0xBFFFFFFF)
                 )
             )
             Row(
@@ -191,8 +197,8 @@ fun PlayScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = formatDuration(10L), color = Color.White)
-                Text(text = formatDuration(duration.toLong()), color = Color.White)
+                Text(text = playViewModel.progressString, color = Color.White)
+                Text(text = playViewModel.formatDuration(30), color = Color.White)
             }
 
             Spacer(modifier = modifier.height(20.dp))
@@ -202,7 +208,9 @@ fun PlayScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { /*TODO*/ }) {
+                IconButton(onClick = {
+                    playViewModel.onUiEvent(UIEvents.Backward)
+                }) {
                     Icon(
                         painter = painterResource(id = R.drawable.back),
                         contentDescription = null,
@@ -211,17 +219,10 @@ fun PlayScreen(
                     )
 
                 }
-                IconButton(
-                    modifier = modifier.size(60.dp),
-                    onClick = {
-                        if (isPlaying) {
-                            player.pause()
-                        } else {
-                            player.play()
-                        }
-                        isPlaying = !isPlaying
-                    }
-                ) {
+                IconButton(modifier = modifier.size(60.dp), onClick = {
+                    playViewModel.onUiEvent(UIEvents.PlayPause)
+                    StartService()
+                }) {
                     Icon(
                         painter = painterResource(id = R.drawable.play_arrow__1_),
                         contentDescription = null,
@@ -230,7 +231,7 @@ fun PlayScreen(
                     )
 
                 }
-                IconButton(onClick = { /*TODO*/ }) {
+                IconButton(onClick = { playViewModel.onUiEvent(UIEvents.SeekToNext) }) {
                     Icon(
                         painter = painterResource(id = R.drawable.back),
                         contentDescription = null,
@@ -240,6 +241,6 @@ fun PlayScreen(
                 }
             }
         }
+
     }
 }
-

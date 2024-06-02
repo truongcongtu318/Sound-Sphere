@@ -1,5 +1,6 @@
 package com.example.soundsphere.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soundsphere.data.repository.DeezerRepository
@@ -14,42 +15,19 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val repository: DeezerRepository
 ) : ViewModel() {
-    private val _newReleaseState = MutableStateFlow(NewReleaseState())
-    val newReleaseState: StateFlow<NewReleaseState> = _newReleaseState
-
-    private val _searchState = MutableStateFlow(SearchState())
-    val searchState: StateFlow<SearchState> = _searchState
-
-    private val _recommendationState = MutableStateFlow(RecommendationState())
-    val recommendationState: StateFlow<RecommendationState> = _recommendationState
-
-    private val _albumsState = MutableStateFlow(AlbumsState())
-    val albumsState: StateFlow<AlbumsState> = _albumsState
-
-    private val _playlistFeatureState = MutableStateFlow(FeaturePlayListState())
-    val playlistFeatureState: StateFlow<FeaturePlayListState> = _playlistFeatureState
-
-    private val _albumByIdState = MutableStateFlow(AlbumByIdState())
-    val albumByIdState: StateFlow<AlbumByIdState> = _albumByIdState
-
-    private val _trackByAlbumIdState = MutableStateFlow(TracksByAlbumIdState())
-    val trackByAlbumIdState: StateFlow<TracksByAlbumIdState> = _trackByAlbumIdState
 
     private val _chartState = MutableStateFlow(ChartState())
     val chartState: StateFlow<ChartState> = _chartState
 
+    private val _albumTracksState = MutableStateFlow(AlbumTracksState())
+    val albumTracksState: StateFlow<AlbumTracksState> = _albumTracksState
+
+    private val _albumState = MutableStateFlow(AlbumState())
+    val albumState: StateFlow<AlbumState> = _albumState
+
     init {
-        if (_albumsState.value.isSuccessDataAlbums == null
-            || _recommendationState.value.isSuccessDataRecommendation == null
-            || _newReleaseState.value.isSuccessDataNewRelease == null
-            || _playlistFeatureState.value.isSuccessDataPlayListFeature == null
-        ) {
-            viewModelScope.launch {
-//                getRecommendationData()
-//                getNewReleasesData()
-//                getAlbumsData()
-//                getFeaturePlayListData()
-            }
+        viewModelScope.launch {
+            getCharts()
         }
     }
 
@@ -59,17 +37,58 @@ class HomeViewModel @Inject constructor(
                 is Resource.Error -> {
                     _chartState.value = ChartState(isError = result.msg)
                 }
+
                 is Resource.Loading -> {
                     _chartState.value = ChartState(isLoading = true)
                 }
+
                 is Resource.Success -> {
                     _chartState.value = ChartState(isSuccessful = result.data)
+                }
+
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+    suspend fun getAlbumTracks(url: String) {
+        repository.getAlbumTracks(url).collect { result ->
+            when (result) {
+                is Resource.Error -> {
+                    _albumTracksState.value = AlbumTracksState(isError = result.msg)
+                }
+
+                is Resource.Loading -> {
+                    _albumTracksState.value = AlbumTracksState(isLoading = true)
+                }
+
+                is Resource.Success -> {
+                    _albumTracksState.value = AlbumTracksState(isSuccessful = result.data)
+                }
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+    suspend fun getAlbum(id: String){
+        repository.getAlbum(id).collect{ result ->
+            when(result){
+                is Resource.Error -> {
+                    _albumState.value = AlbumState(isError = result.msg)
+                }
+                is Resource.Loading -> {
+                    _albumState.value = AlbumState(isLoading = true)
+                }
+                is Resource.Success -> {
+                    _albumState.value = AlbumState(isSuccessful = result.data)
+                    Log.d("Album", "getAlbum: ${result.data}")
                 }
                 is Resource.Track -> TODO()
             }
         }
     }
 }
+
 
 //    private suspend fun getSearchData(query: String) {
 //        repository.getSearchData(query).collect { result ->
@@ -220,4 +239,4 @@ class HomeViewModel @Inject constructor(
 //
 //    }
 //}
-
+//

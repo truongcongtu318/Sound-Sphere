@@ -10,10 +10,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.example.soundsphere.data.dtodeezer.albumtracks.Data
 import com.example.soundsphere.data.model.Track
-import com.example.soundsphere.data.repository.SoundSphereApiRepository
+import com.example.soundsphere.data.repository.DeezerRepository
 import com.example.soundsphere.player.service.JetAudioServiceHandler
 import com.example.soundsphere.player.service.JetAudioState
+import com.example.soundsphere.player.service.PlayerEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,19 +25,12 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-private val track = Track(
-    id = "",
-    name = "",
-    artist = "",
-    preview_url = "".toUri().toString(),
-    duration = 0,
-    title = ""
-)
+private var track: Data? = null
 
 @HiltViewModel
 class PlayViewModel @Inject constructor(
     private val serviceHandler: JetAudioServiceHandler,
-    private val soundSphereRepository: SoundSphereApiRepository,
+    private val repository: DeezerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     var duration by savedStateHandle.saveable {
@@ -51,18 +46,14 @@ class PlayViewModel @Inject constructor(
         mutableStateOf(false)
     }
     var currentSelectedTrack by savedStateHandle.saveable {
-        mutableStateOf(track)
+        mutableStateOf(Data())
     }
     var trackList by savedStateHandle.saveable {
-        mutableStateOf(listOf<Track>())
+        mutableStateOf(listOf<Data>())
     }
 
     private val _uiState: MutableStateFlow<UiState> = MutableStateFlow(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-
-
-
 
     init {
         viewModelScope.launch {
@@ -72,6 +63,7 @@ class PlayViewModel @Inject constructor(
                     is JetAudioState.CurrentPlaying -> {
                         currentSelectedTrack = trackList[mediaState.mediaItemIndex]
                     }
+
                     JetAudioState.Initial -> _uiState.value = UiState.Initial
                     is JetAudioState.Playing -> isPlaying = mediaState.isPlaying
                     is JetAudioState.Progress -> calculateProgressValue(mediaState.progress)
@@ -82,32 +74,44 @@ class PlayViewModel @Inject constructor(
                 }
 
             }
-
         }
     }
 
 
-    private fun LoadTrackData(){
+    internal fun loadTrackList(url: String) {
         viewModelScope.launch {
-            val track = soundSphereRepository.getTrackByIdData(currentSelectedTrack.id)
-            Log.d("123", track.toString())
+            repository.getAlbumTracks(url).collectLatest { albumTracks ->
+                trackList = albumTracks.data?.data ?: listOf()
+                setMediaItems()
+            }
         }
     }
 
-    private fun setMediaItems(){
-        trackList.map { track->
-            MediaItem.Builder()
-                .setUri(track.preview_url.toUri())
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setAlbumArtist(track.artist)
-                        .setDisplayTitle(track.title)
-                        .setSubtitle(track.name)
-                        .build()
-                )
-                .build()
+    internal fun setCurrentTrackSelected(track: Data) {
+        this.currentSelectedTrack = track
+        serviceHandler.addMediaItem(
+            MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
+                MediaMetadata.Builder().setAlbumArtist(track.artist?.name)
+                    .setDisplayTitle(track.title).setSubtitle(track.title).build()
+            ).build()
+        )
+    }
+
+    private fun setMediaItems() {
+        trackList.map { track ->
+            MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
+                MediaMetadata.Builder().setAlbumArtist(track.artist?.name)
+                    .setDisplayTitle(track.title).setSubtitle(track.title).build()
+            ).build()
         }.also {
-            serviceHandler.setMediaItems(it)
+            val indexCurrentSelected =
+                trackList.indexOf(trackList.find { it.id == currentSelectedTrack.id })
+            val startIndex = if (indexCurrentSelected < 0) {
+                0
+            } else {
+                indexCurrentSelected
+            }
+            serviceHandler.setMediaItems(it, startIndex)
         }
     }
 
@@ -123,6 +127,43 @@ class PlayViewModel @Inject constructor(
         val minute = TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS)
         val seconds = (minute) - minute * TimeUnit.SECONDS.convert(1, TimeUnit.MINUTES)
         return String.format("%02d:%02d", minute, seconds)
+    }
+
+    fun onUiEvent(event: UIEvents) = viewModelScope.launch {
+        when (event) {
+            UIEvents.Backward -> serviceHandler.onPlayerEvent(PlayerEvent.SeekToPrevious)
+            UIEvents.Forward -> serviceHandler.onPlayerEvent(PlayerEvent.Forward)
+            UIEvents.PlayPause -> serviceHandler.onPlayerEvent(PlayerEvent.PlayPause)
+            is UIEvents.SeekTo -> {
+                serviceHandler.onPlayerEvent(
+                    PlayerEvent.SeekTo, seekPosition = ((duration * event.position) / 100f).toLong()
+                )
+            }
+
+            UIEvents.SeekToNext -> serviceHandler.onPlayerEvent(PlayerEvent.SeekToNext)
+            is UIEvents.SelectedAudioChange -> {
+                serviceHandler.onPlayerEvent(
+                    PlayerEvent.SelectedAudioChange, selectedAudioIndex = event.index
+                )
+            }
+
+            is UIEvents.UpdateProgress -> {
+                serviceHandler.onPlayerEvent(
+                    PlayerEvent.UpdateProgress(
+                        event.newProgress
+                    ),
+                )
+                progress = event.newProgress
+            }
+        }
+
+
+    }
+    override fun onCleared() {
+        viewModelScope.launch {
+            serviceHandler.onPlayerEvent(PlayerEvent.Stop)
+        }
+        super.onCleared()
     }
 }
 

@@ -2,7 +2,7 @@ package com.example.soundsphere.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.soundsphere.data.repository.SoundSphereApiRepository
+import com.example.soundsphere.data.repository.DeezerRepository
 import com.example.soundsphere.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,71 +12,129 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val repository: SoundSphereApiRepository
+    private val repository: DeezerRepository
 ) : ViewModel() {
 
-    private val _topArtistState = MutableStateFlow(TopArtistState())
-    val topArtistState: StateFlow<TopArtistState> = _topArtistState
-    private val _browseCategoryState = MutableStateFlow(BrowseCategoryState())
-    val browseCategoryState: StateFlow<BrowseCategoryState> = _browseCategoryState
+    private val _genresState = MutableStateFlow(GenresState())
+    val genresState: StateFlow<GenresState> = _genresState
+
+    private val _searchAlbumState = MutableStateFlow(SearchAlbumState())
+    val searchAlbumState: StateFlow<SearchAlbumState> = _searchAlbumState
+
+    private val _searchArtistState = MutableStateFlow(SearchArtistState())
+    val searchArtistState: StateFlow<SearchArtistState> = _searchArtistState
+
+    private val _searchTrackState = MutableStateFlow(SearchTrackState())
+    val searchTrackState: StateFlow<SearchTrackState> = _searchTrackState
+
+    private val _searchPlayListState = MutableStateFlow(SearchPlayListState())
+    val searchPlayListState: StateFlow<SearchPlayListState> = _searchPlayListState
+
 
     init {
-        if (_topArtistState.value.isSuccessDataTopArtist == null) {
-            viewModelScope.launch {
-                getTopArtistData()
-            }
+        viewModelScope.launch {
+            getGenres()
         }
-        if (_browseCategoryState.value.isSuccessDataBrowseCategory == null) {
-            viewModelScope.launch {
-                getBrowseCategoryData()
-            }
-        }
-
     }
 
-    private suspend fun getTopArtistData() {
-        repository.getTopArtistData().collect { result ->
-            when (result) {
+    suspend fun getSearchAlbum(q: String) {
+        repository.getSearchAlbum(q).collect{result ->
+            when(result){
                 is Resource.Error -> {
-                    _topArtistState.value = TopArtistState(
+                    _searchAlbumState.value = SearchAlbumState(
                         isError = result.msg ?: "An unexpected error occured"
                     )
                 }
+                is Resource.Loading -> {
+                    _searchAlbumState.value = SearchAlbumState(isLoading = true)
+                }
+                is Resource.Success -> {
+                    _searchAlbumState.value = SearchAlbumState(isSuccessful = result.data)
+                }
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+
+    suspend fun getSearchArtist(q: String) {
+        repository.getSearchArtist(q).collect{result ->
+            when(result){
+                is Resource.Error -> {
+                    _searchArtistState.value = SearchArtistState(
+                        isError = result.msg ?: "An unexpected error occured"
+                    )
+                }
+                is Resource.Loading -> {
+                    _searchArtistState.value = SearchArtistState(isLoading = true)
+                }
+                is Resource.Success -> {
+                    _searchArtistState.value = SearchArtistState(isSuccessful = result.data)
+                }
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+
+    suspend fun getSearchTrack(q: String) {
+        repository.getSearchTrack(q).collect{result ->
+            when(result){
+                is Resource.Error -> {
+                    _searchTrackState.value = SearchTrackState(
+                        isError = result.msg ?: "An unexpected error occured"
+                    )
+                }
+                is Resource.Loading -> {
+                    _searchTrackState.value = SearchTrackState(isLoading = true)
+                }
+                is Resource.Success -> {
+                    _searchTrackState.value = SearchTrackState(isSuccessful = result.data)
+                }
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+
+    suspend fun getSearchPlayList(q: String) {
+        repository.getSearchPlayList(q).collect{result ->
+            when(result){
+                is Resource.Error -> {
+                    _searchPlayListState.value = SearchPlayListState(
+                        isError = result.msg ?: "An unexpected error occured"
+                    )
+                }
+                is Resource.Loading -> {
+                    _searchPlayListState.value = SearchPlayListState(isLoading = true)
+                }
+                is Resource.Success -> {
+                    _searchPlayListState.value = SearchPlayListState(isSuccessful = result.data)
+                }
+                is Resource.Track -> TODO()
+            }
+        }
+    }
+
+    private suspend fun getGenres() {
+        repository.getGenres().collect { result ->
+            when (result) {
+                is Resource.Error -> {
+                    _genresState.value =
+                        GenresState(isError = result.msg ?: "An unexpected error occured")
+                }
 
                 is Resource.Loading -> {
-                    _topArtistState.value = TopArtistState(isLoading = true)
+                    _genresState.value = GenresState(isLoading = true)
                 }
 
                 is Resource.Success -> {
-                    _topArtistState.value = TopArtistState(isSuccessDataTopArtist = result.data)
+                    _genresState.value = GenresState(isSuccessful = result.data)
                 }
 
                 is Resource.Track -> TODO()
             }
-        }
 
-    }
-
-    private suspend fun getBrowseCategoryData() {
-        repository.getBrowseCategoryData().collect { result ->
-            when (result) {
-                is Resource.Error -> {
-                    _browseCategoryState.value = BrowseCategoryState(
-                        isError = result.msg ?: "An unexpected error occured"
-                    )
-                }
-
-                is Resource.Loading -> {
-                    _browseCategoryState.value = BrowseCategoryState(isLoading = true)
-                }
-
-                is Resource.Success -> {
-                    _browseCategoryState.value =
-                        BrowseCategoryState(isSuccessDataBrowseCategory = result.data)
-                }
-
-                is Resource.Track -> TODO()
-            }
         }
     }
 }

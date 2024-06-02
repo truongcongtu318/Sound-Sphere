@@ -1,6 +1,8 @@
 package com.example.soundsphere.navigation
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -11,7 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.soundsphere.ui.LibraryScreen
+import com.example.soundsphere.ui.library.LibraryScreen
 import com.example.soundsphere.ui.home.HomeScreen
 import com.example.soundsphere.ui.login.LoginScreen
 import com.example.soundsphere.ui.login.LoginViewModel
@@ -19,8 +21,10 @@ import com.example.soundsphere.ui.play.PlayScreen
 import com.example.soundsphere.ui.profile.ProfileScreen
 import com.example.soundsphere.ui.search.SearchScreen
 import com.example.soundsphere.ui.song_list.SongListScreen
+import com.example.soundsphere.ui.song_list.SongListScreenArtist
 import com.example.soundsphere.ui.song_list.SongListScreenPlayList
 
+@RequiresApi(Build.VERSION_CODES.S)
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun NavGraph(navController: NavHostController = rememberNavController()) {
@@ -49,35 +53,75 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             ProfileScreen(navController = navController)
         }
         composable(
-            route = "${NavigationRoutes.SongList.route}/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
+            route = "${NavigationRoutes.SongList.route}/{urlTrackList}/{urlAlbum}",
+            arguments = listOf(
+                navArgument("urlTrackList") { type = NavType.StringType },
+                navArgument("urlAlbum") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
-            val albumId = backStackEntry.arguments?.getString("id")
-            albumId?.let {
-                SongListScreen(id = it, navController = navController)
+            val urlTrackList = backStackEntry.arguments?.getString("urlTrackList")
+            val urlAlbum = backStackEntry.arguments?.getString("urlAlbum")
+            urlTrackList?.let {
+                urlAlbum?.let {
+                    SongListScreen(
+                        urlTrackList = urlTrackList,
+                        urlAlbum = urlAlbum,
+                        navController = navController
+                    )
+                }
             }
         }
+
         composable(
-            route = "${NavigationRoutes.SongListPlayList.route}/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
+            route = "${NavigationRoutes.SongListPlayList.route}/{urlTrackList}/{idPlayList}",
+            arguments = listOf(
+                navArgument("idPlayList") { type = NavType.StringType },
+                navArgument("urlTrackList") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val idPlayList = backStackEntry.arguments?.getString("idPlayList")
+            val urlTrackList = backStackEntry.arguments?.getString("urlTrackList")
+            urlTrackList?.let {
+                idPlayList?.let {
+                    SongListScreenPlayList(
+                        urlTrackList = urlTrackList,
+                        idPlayList = idPlayList,
+                        navController = navController
+                    )
+                }
+            }
+        }
+
+        composable(
+            route = "${NavigationRoutes.SongListArtist.route}/{urlTrackList}",
+            arguments = listOf(
+                navArgument("urlTrackList") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val urlTrackList = backStackEntry.arguments?.getString("urlTrackList")
+            urlTrackList?.let {
+                SongListScreenArtist(
+                    urlTrackList = urlTrackList,
+                    navController = navController
+                )
+            }
+        }
+
+        composable(
+            route = "${NavigationRoutes.PlayTrack.route}/{id}/{urlTrackList}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("urlTrackList") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")
+            val urlTrackList = backStackEntry.arguments?.getString("urlTrackList")
             if (id != null) {
-                SongListScreenPlayList(id = id, navController = navController)
+                PlayScreen(navController = navController, urlTrackList = urlTrackList, id = id)
             }
 
         }
 
-        composable(
-            route = "${NavigationRoutes.PlayTrack.route}/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id")
-            if (id != null) {
-                PlayScreen(navController = navController , id = id)
-            }
-
-        }
     }
 }
 

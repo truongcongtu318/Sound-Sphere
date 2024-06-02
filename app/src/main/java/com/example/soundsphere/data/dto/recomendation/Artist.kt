@@ -1,9 +1,0 @@
-package com.example.soundsphere.data.dto.recomendation
-
-data class Artist(
-    val href: String,
-    val id: String,
-    val name: String,
-    val type: String,
-    val uri: String
-)
