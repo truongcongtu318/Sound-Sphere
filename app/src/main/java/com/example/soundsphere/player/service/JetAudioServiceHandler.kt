@@ -22,6 +22,7 @@ class JetAudioServiceHandler @Inject constructor(
     val audioState: StateFlow<JetAudioState> = _audioState.asStateFlow()
 
     private var job: Job? = null
+
     init {
         exoPlayer.addListener(this)
     }
@@ -37,10 +38,11 @@ class JetAudioServiceHandler @Inject constructor(
         exoPlayer.play()
     }
 
-    fun clearExoPlayer(){
+    fun clearExoPlayer() {
         exoPlayer.clearMediaItems()
         exoPlayer.release()
     }
+
     suspend fun onPlayerEvent(
         playerEvent: PlayerEvent, selectedAudioIndex: Int = -1, seekPosition: Long = 0
     ) {
@@ -55,7 +57,11 @@ class JetAudioServiceHandler @Inject constructor(
                 exoPlayer.seekForward()
             }
 
-            PlayerEvent.PlayPause -> playOrPause()
+            PlayerEvent.PlayPause -> {
+                playOrPause()
+                exoPlayer.playWhenReady = !exoPlayer.playWhenReady
+            }
+
             PlayerEvent.SeekTo -> exoPlayer.seekTo(seekPosition.toLong())
             PlayerEvent.SeekToNext -> {
                 if (exoPlayer.hasNextMediaItem()) {
@@ -95,6 +101,13 @@ class JetAudioServiceHandler @Inject constructor(
                 JetAudioState.Buffering(exoPlayer.currentPosition)
 
             ExoPlayer.STATE_READY -> _audioState.value = JetAudioState.Ready(exoPlayer.duration)
+            Player.STATE_ENDED -> {
+                TODO()
+            }
+
+            Player.STATE_IDLE -> {
+                TODO()
+            }
         }
     }
 
@@ -121,7 +134,6 @@ class JetAudioServiceHandler @Inject constructor(
             _audioState.value = JetAudioState.Playing(true)
         }
         startProgressUpdate()
-
     }
 
     private suspend fun startProgressUpdate() = job.run {

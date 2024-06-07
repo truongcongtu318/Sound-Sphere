@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     navController: NavHostController,
-    viewModel: LoginViewModel = hiltViewModel(),
+    viewModel: LoginViewModel,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
 

@@ -69,7 +69,7 @@ fun ButtonComponent(
             .height(70.dp),
         shape = RoundedCornerShape(30.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = color  // Thiết lập màu nền của Button
+            containerColor = color
         ),
         onClick = onClicked
     ) {
@@ -167,7 +167,7 @@ fun LocalImageRoundAvatar(
 }
 
 @Composable
-fun BottomBar(navController: NavHostController) {
+fun BottomBar(navController: NavHostController,modifier: Modifier) {
     val screens = listOf(
         BottomBarRoutes.Home,
         BottomBarRoutes.Search,
@@ -480,7 +480,7 @@ fun ImageBoxPlay(
 @Preview
 @Composable
 fun BottomBarPreview() {
-    BottomBar(navController = rememberNavController())
+
 }
 
 

@@ -43,7 +43,7 @@ import com.example.soundsphere.ui.theme.roboto
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = hiltViewModel(),
+    viewModel: ProfileViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {

@@ -1,5 +1,7 @@
 package com.example.soundsphere.data.dtodeezer.playlist
 
+import com.example.soundsphere.data.model.Artist
+
 data class Data(
     val album: Album,
     val artist: Artist,

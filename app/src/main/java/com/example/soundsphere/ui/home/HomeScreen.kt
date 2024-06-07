@@ -65,8 +65,8 @@ import java.nio.charset.StandardCharsets
 )
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel(),
-    profileViewModel: ProfileViewModel = hiltViewModel(),
+    viewModel: HomeViewModel,
+    profileViewModel: ProfileViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
@@ -131,8 +131,7 @@ private fun TopArtistList(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 120.dp)
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 15.dp)
     ) {
         Text(
             text = "Top Artists",
@@ -177,7 +176,7 @@ private fun TopPlaylistsList(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 15.dp)
     ) {
         Text(
             text = "Top Playlists",
@@ -200,6 +199,7 @@ private fun TopPlaylistsList(
                         val urlTrackList = playlist.tracklist
                         val idPlayList = playlist.id
                         val encodeUrlTrackList = encodeUrl(urlTrackList)
+                        Log.d("URL", "TopPlaylistsList: $encodeUrlTrackList")
 
                         scope.launch {
                             navController.navigate("songlistplaylist/$encodeUrlTrackList/$idPlayList")
@@ -221,7 +221,7 @@ private fun TopAlbumList(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 15.dp)
     ) {
         Text(
             text = "Top Albums",
@@ -273,7 +273,7 @@ private fun TopTrackList(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 15.dp)
     ) {
         Text(
             text = "Top Tracks",
@@ -320,7 +320,7 @@ private fun TopUpHome(
             .fillMaxHeight(fraction = 0.15f)
             .background(Color(0xFF121212))
             .padding(top = 30.dp, bottom = 20.dp)
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

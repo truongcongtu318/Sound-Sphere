@@ -27,8 +27,8 @@ import com.example.soundsphere.ui.theme.fontInter
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun LibraryScreen(
-    navController: NavHostController = rememberNavController(),
-    libraryViewModel: LibraryViewModel = hiltViewModel(),
+    navController: NavHostController,
+    libraryViewModel: LibraryViewModel,
     modifier: Modifier = Modifier
 ) {
     val state = libraryViewModel.libraryState.collectAsState()
@@ -37,9 +37,6 @@ fun LibraryScreen(
         modifier = modifier
             .fillMaxSize(),
         containerColor = Color(0xFF121212),
-        bottomBar = {
-            BottomBar(navController = navController)
-        }
     ) {
         Column(
             modifier = modifier
@@ -67,6 +64,5 @@ fun LibraryScreen(
 @Preview
 @Composable
 fun LibraryScreenPreview() {
-    LibraryScreen()
 
 }

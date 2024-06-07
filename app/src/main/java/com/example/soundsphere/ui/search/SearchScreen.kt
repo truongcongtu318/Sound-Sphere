@@ -80,8 +80,8 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SearchScreen(
-    viewModel: HomeViewModel = hiltViewModel(),
-    searchViewModel: SearchViewModel = hiltViewModel(),
+    viewModel: HomeViewModel,
+    searchViewModel: SearchViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
@@ -109,10 +109,6 @@ fun SearchScreen(
     val searchArtists = searchArtistState.value.isSuccessful?.data
     val searchTrack = searchTrackState.value.isSuccessful?.data
     val searchPlayList = searchPlayListState.value.isSuccessful?.data
-    Log.d("TAG", "Album: $searchAlbum")
-    Log.d("TAG", "Artist: $searchArtists")
-    Log.d("TAG", "Track: $searchTrack")
-    Log.d("TAG", "PlayList: $searchPlayList")
 
 
     Scaffold(
@@ -131,9 +127,6 @@ fun SearchScreen(
             if (chartArtist == null) {
                 CircularProgressIndicator()
             }
-//            else if (searchArtists == null || searchAlbum == null || searchTrack == null || searchPlayList == null) {
-//                    CircularProgressIndicator()
-//            }
         }
         Column(
             modifier = modifier
@@ -175,7 +168,6 @@ fun SearchScreen(
                 LazyVerticalStaggeredGrid(
                     modifier = modifier
                         .fillMaxSize(1f)
-                        .padding(bottom = 130.dp)
                         .clip(shape = RoundedCornerShape(20.dp)),
                     columns = StaggeredGridCells.Fixed(2),
                     contentPadding = PaddingValues(5.dp),
@@ -390,7 +382,6 @@ fun SearchResults(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(bottom = 140.dp)
     ) {
         item {
             searchAlbum?.let {

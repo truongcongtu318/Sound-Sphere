@@ -1,4 +1,4 @@
-package com.example.soundsphere.data.dtodeezer.albumtracks
+package com.example.soundsphere.data.model
 
 import android.os.Parcelable
 import kotlinx.android.parcel.Parcelize

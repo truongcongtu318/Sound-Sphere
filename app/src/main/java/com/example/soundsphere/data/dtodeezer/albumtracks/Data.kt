@@ -1,5 +1,7 @@
 package com.example.soundsphere.data.dtodeezer.albumtracks
 
+import com.example.soundsphere.data.model.Artist
+
 data class Data(
     val artist: Artist? = null,
     val disk_number: Int?= null,
