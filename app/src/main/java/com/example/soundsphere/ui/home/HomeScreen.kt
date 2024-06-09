@@ -37,20 +37,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.soundsphere.data.dtodeezer.albumtracks.Data
 import com.example.soundsphere.data.dtodeezer.chart.Album
 import com.example.soundsphere.data.dtodeezer.chart.Albums
 import com.example.soundsphere.data.dtodeezer.chart.Artists
+import com.example.soundsphere.data.dtodeezer.chart.DataXXX
+import com.example.soundsphere.data.dtodeezer.chart.DataXXXX
 import com.example.soundsphere.data.dtodeezer.chart.Playlists
 import com.example.soundsphere.data.dtodeezer.chart.Podcasts
 import com.example.soundsphere.data.dtodeezer.chart.Tracks
+import com.example.soundsphere.data.model.Track
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.components.ImageBoxExtraLarge
 import com.example.soundsphere.ui.components.ImageBoxLarge
 import com.example.soundsphere.ui.components.ImageBoxMedium
 import com.example.soundsphere.ui.components.RoundAvatar
+import com.example.soundsphere.ui.play.PlayViewModel
 import com.example.soundsphere.ui.profile.ProfileState
 import com.example.soundsphere.ui.profile.ProfileViewModel
 import com.example.soundsphere.ui.theme.roboto
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
@@ -63,10 +69,32 @@ import java.nio.charset.StandardCharsets
     "CoroutineCreationDuringComposition", "SuspiciousIndentation",
     "UnusedMaterial3ScaffoldPaddingParameter"
 )
+
+fun DataXXXX.toTrack(): Track {
+    return Track(
+        id = this.id.toString(),
+        artist = this.artist,
+        album = this.album,
+        duration = (this.duration ?: 0).toString(),
+        link = this.link ?: "",
+        md5_image = this.md5_image ?: "",
+        preview = this.preview ?: "",
+        rank = (this.rank ?: 0).toString(),
+        title = this.title ?: "",
+        title_short = this.title_short ?: "",
+        title_version = this.title_version ?: "",
+        track_position = this.position,
+        type = this.type ?: ""
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "LogNotTimber")
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
     profileViewModel: ProfileViewModel,
+    playViewModel: PlayViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
@@ -79,8 +107,12 @@ fun HomeScreen(
     val chartAlbums = chartState.value.isSuccessful?.albums
     val chartPlaylists = chartState.value.isSuccessful?.playlists
     val chartArtists = chartState.value.isSuccessful?.artists
-    val chartPodcasts = chartState.value.isSuccessful?.podcasts
 
+    if (chartTracks != null) {
+        playViewModel.trackList = chartTracks.data.map {
+            it.toTrack()
+        }
+    }
     Scaffold(
         modifier = modifier
             .fillMaxSize(),
@@ -102,10 +134,50 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             stickyHeader {
-                TopUpHome(modifier, profileState, navController)
+                TopUpHome(modifier = modifier, navController = navController)
             }
             item {
-                TopTrackList(modifier, chartTracks, navController, scope)
+                Column(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 15.dp)
+                ) {
+                    Text(
+                        text = "Top Tracks",
+                        color = Color(0xBFFFFFFF),
+                        fontFamily = roboto,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 27.sp,
+                    )
+                    LazyRow(
+                        Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
+                        val lastUrl = "/500x500-000000-80-0-0.jpg"
+                        Log.d("URL", "TopTrackList: ${
+                            chartTracks?.data?.map {
+                                it.toTrack()
+                            }
+                        }")
+                        if (chartTracks != null) {
+                            items(chartTracks.data) { track ->
+                                if (track.preview == "") return@items
+                                ImageBoxExtraLarge(
+                                    imageUrl = baseUrl + track.md5_image + lastUrl,
+                                    text = track.title
+                                ) {
+                                    scope.launch {
+                                        navController.navigate(NavigationRoutes.PlayTrack.route)
+                                        playViewModel.setCurrentTrackSelected(track.toTrack())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
             }
             item {
                 TopAlbumList(modifier, chartAlbums, navController, scope)
@@ -263,55 +335,10 @@ fun encodeUrl(url: String): String {
     return URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
 }
 
-@Composable
-private fun TopTrackList(
-    modifier: Modifier,
-    chartTrack: Tracks?,
-    navController: NavHostController,
-    scope: CoroutineScope,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 15.dp)
-    ) {
-        Text(
-            text = "Top Tracks",
-            color = Color(0xBFFFFFFF),
-            fontFamily = roboto,
-            fontWeight = FontWeight.Medium,
-            fontSize = 27.sp,
-        )
-        LazyRow(
-            Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-            val lastUrl = "/500x500-000000-80-0-0.jpg"
-            if (chartTrack != null) {
-                items(chartTrack.data) { track ->
-
-                    ImageBoxExtraLarge(
-                        imageUrl = baseUrl + track.md5_image + lastUrl,
-                        text = track.title
-                    ) {
-                        val id = track.id
-                        scope.launch {
-                            navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 private fun TopUpHome(
     modifier: Modifier,
-    profileState: State<ProfileState>,
     navController: NavHostController
 ) {
     Row(
@@ -324,14 +351,14 @@ private fun TopUpHome(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        val user = profileState.value.success
+        val user = FirebaseAuth.getInstance().currentUser
         Column(
             modifier = modifier
         ) {
 
             if (user != null) {
                 Text(
-                    text = "\uD83D\uDC4BHi ${user.displayName}",
+                    text = "\uD83D\uDC4BHi ${user.displayName ?: "Anonymous"}",
                     color = Color(0xBFFFFFFF),
                     fontFamily = roboto,
                     fontWeight = FontWeight.Light,

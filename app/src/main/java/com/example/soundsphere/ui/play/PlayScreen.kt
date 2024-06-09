@@ -1,6 +1,7 @@
 package com.example.soundsphere.ui.play
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,6 +25,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,37 +41,62 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
-import com.example.soundsphere.data.dtodeezer.albumtracks.Data
-import com.example.soundsphere.data.model.Track
 import com.example.soundsphere.ui.components.ImageBoxPlay
-import com.example.soundsphere.ui.home.HomeViewModel
-import com.example.soundsphere.ui.song_list.SongListViewModel
+import com.example.soundsphere.ui.firestore.firestoreViewModel
 import com.example.soundsphere.ui.theme.fontInter
-
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 
 @androidx.annotation.OptIn(UnstableApi::class)
-@SuppressLint("LogNotTimber", "StateFlowValueCalledInComposition", "PrivateResource")
+@SuppressLint(
+    "LogNotTimber", "StateFlowValueCalledInComposition", "PrivateResource",
+    "UnrememberedMutableState"
+)
 @Composable
 fun PlayScreen(
     navController: NavHostController,
-    songListViewModel: SongListViewModel,
-    homeViewModel: HomeViewModel,
     playViewModel: PlayViewModel,
-    id: String?,
-    urlTrackList: String?,
+    firestoreViewModel: firestoreViewModel = hiltViewModel(),
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
 
 
+    val scope = rememberCoroutineScope()
     val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
     val lastUrl = "/500x500-000000-80-0-0.jpg"
+    val likeTrackState = firestoreViewModel.likedTracks.collectAsState().value
+    val fireStoreState = firestoreViewModel.savedTracks.collectAsState().value
+    val context = LocalContext.current
+    var icons by remember { mutableStateOf(Icons.Filled.FavoriteBorder) } // Default icon is set to border
+    val userTracksCollection =
+        FirebaseFirestore.getInstance().collection("favourites")
+            .document(FirebaseAuth.getInstance().currentUser?.email.toString())
+            .collection("tracks")
 
-   LaunchedEffect(playViewModel.currentSelectedTrack) {
-       playViewModel.setCurrentTrackSelected(playViewModel.currentSelectedTrack)
-   }
+    Log.d("currentTrack", playViewModel.currentSelectedTrack.toString())
+
+    LaunchedEffect(playViewModel.currentSelectedTrack) {
+        userTracksCollection.document(playViewModel.currentSelectedTrack.id.toString()).get()
+            .await()
+            ?.let { document ->
+                Log.d("Document", "${document.exists()}")
+                icons = if (document.exists()) {
+                    Icons.Filled.Favorite
+                } else {
+                    Icons.Filled.FavoriteBorder
+                }
+
+            }
+    }
+
+
+
 
     Column(
         modifier = modifier
@@ -144,9 +176,21 @@ fun PlayScreen(
                         }
                     }
                     IconButton(
-                        onClick = { /*TODO*/ }) {
+                        onClick = {
+                            Log.d("liked", track.toString())
+                            Log.d("liked",  FirebaseAuth.getInstance().currentUser?.email.toString() )
+                            firestoreViewModel.savedLikedTrack(
+                                track,
+                                FirebaseAuth.getInstance().currentUser?.email.toString()
+                            )
+                            icons = if (icons == Icons.Filled.FavoriteBorder) {
+                                Icons.Filled.Favorite
+                            } else {
+                                Icons.Filled.FavoriteBorder
+                            }
+                        }) {
                         Icon(
-                            imageVector = Icons.Filled.FavoriteBorder,
+                            imageVector = icons,
                             contentDescription = null,
                             tint = Color(0xBFFFFFFF),
                             modifier = modifier.size(45.dp)

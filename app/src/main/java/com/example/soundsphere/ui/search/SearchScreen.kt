@@ -113,8 +113,7 @@ fun SearchScreen(
 
     Scaffold(
         modifier = modifier
-            .fillMaxSize()
-            .padding(top = 20.dp),
+            .fillMaxSize(),
         containerColor = Color(0xFF121212),
     ) {
         Column(
@@ -476,7 +475,7 @@ fun SearchResults(
                             text = track.title_short
                         ) {
                             scope.launch {
-                                navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
+                                navController.navigate(NavigationRoutes.PlayTrack.route)
                             }
                         }
                     }

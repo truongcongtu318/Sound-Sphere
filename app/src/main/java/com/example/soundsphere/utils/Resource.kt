@@ -7,7 +7,6 @@ sealed class Resource<T>(
 ) {
 
     class Success<T>(data: T?) : Resource<T>(data = data)
-    class Track<T>(track: com.example.soundsphere.data.model.Track?) : Resource<T>(track = track)
     class Error<T>(msg: String) : Resource<T>(msg = msg)
     class Loading<T> : Resource<T>()
 }

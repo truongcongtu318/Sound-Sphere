@@ -46,7 +46,7 @@ class HomeViewModel @Inject constructor(
                     _chartState.value = ChartState(isSuccessful = result.data)
                 }
 
-                is Resource.Track -> TODO()
+
             }
         }
     }
@@ -65,7 +65,6 @@ class HomeViewModel @Inject constructor(
                 is Resource.Success -> {
                     _albumTracksState.value = AlbumTracksState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -83,7 +82,6 @@ class HomeViewModel @Inject constructor(
                     _albumState.value = AlbumState(isSuccessful = result.data)
                     Log.d("Album", "getAlbum: ${result.data}")
                 }
-                is Resource.Track -> TODO()
             }
         }
     }

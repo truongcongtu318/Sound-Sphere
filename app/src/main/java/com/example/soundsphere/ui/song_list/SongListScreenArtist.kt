@@ -232,6 +232,7 @@ fun SongListScreenArtist(
                     val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
                     val lastUrl = "/500x500-000000-80-0-0.jpg"
                     items(trackList.orEmpty()) { track ->
+                        if (track.preview == "") return@items
                         Row(
                             modifier = modifier
                                 .fillMaxWidth()
@@ -259,7 +260,7 @@ fun SongListScreenArtist(
                                     .size(50.dp)
                                     .clip(shape = RoundedCornerShape(5.dp))
                                     .clickable {
-                                        navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
+                                        navController.navigate(NavigationRoutes.PlayTrack.route)
                                     }
                             )
 

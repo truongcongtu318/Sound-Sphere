@@ -1,7 +1,6 @@
 package com.example.soundsphere.ui.play
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.util.Log.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.net.toUri
@@ -12,9 +11,7 @@ import androidx.lifecycle.viewmodel.compose.SavedStateHandleSaveableApi
 import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import com.example.soundsphere.data.dtodeezer.albumtracks.Data
 import com.example.soundsphere.data.model.Track
-import com.example.soundsphere.data.repository.DeezerRepository
 import com.example.soundsphere.player.service.JetAudioServiceHandler
 import com.example.soundsphere.player.service.JetAudioState
 import com.example.soundsphere.player.service.PlayerEvent
@@ -27,19 +24,12 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-var track: Data? = null
-
-data class TrackState(
-    val isLoading: Boolean = false,
-    var isSuccessful: Track? = null,
-    val isError: String? = ""
-)
-
+val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
+val lastUrl = "/500x500-000000-80-0-0.jpg"
 @SuppressLint("LogNotTimber")
 @HiltViewModel
 class PlayViewModel @Inject constructor(
     private val serviceHandler: JetAudioServiceHandler,
-    private val repository: DeezerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     @OptIn(SavedStateHandleSaveableApi::class)
@@ -118,7 +108,7 @@ class PlayViewModel @Inject constructor(
         serviceHandler.addMediaItem(
             MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
                 MediaMetadata.Builder().setAlbumArtist(track.artist?.name)
-                    .setDisplayTitle(track.title).setSubtitle(track.title).build()
+                    .setDisplayTitle(track.title).setSubtitle(track.album?.cover_xl).build()
             ).build()
         )
         setMediaItems()
@@ -126,9 +116,14 @@ class PlayViewModel @Inject constructor(
 
     private fun setMediaItems() {
         trackList.map { track ->
+            val imageUri = baseUrl + track.md5_image + lastUrl
             MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
-                MediaMetadata.Builder().setAlbumArtist(track.artist?.name)
-                    .setDisplayTitle(track.title).setSubtitle(track.title).build()
+                MediaMetadata.Builder()
+                    .setAlbumArtist(track.artist?.name)
+                    .setDisplayTitle(track.title)
+                    .setSubtitle(track.title)
+                    .setArtworkUri(imageUri.toUri())
+                    .build()
             ).build()
         }.also { it ->
             val indexCurrentSelected =
@@ -138,7 +133,7 @@ class PlayViewModel @Inject constructor(
             } else {
                 indexCurrentSelected
             }
-            currentSelectedTrack = trackList[indexCurrentSelected]
+            currentSelectedTrack = trackList[startIndex]
             serviceHandler.setMediaItems(it, startIndex)
         }
     }
@@ -164,6 +159,7 @@ class PlayViewModel @Inject constructor(
             UIEvents.Forward -> {
                 serviceHandler.onPlayerEvent(PlayerEvent.Forward)
             }
+
             UIEvents.PlayPause -> {
                 serviceHandler.onPlayerEvent(PlayerEvent.PlayPause)
                 isPlaying = !isPlaying
@@ -220,5 +216,4 @@ sealed class UIEvents {
 sealed class UiState {
     object Initial : UiState()
     object Ready : UiState()
-    object Paused : UiState()
 }

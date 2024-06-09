@@ -43,7 +43,6 @@ class SongListViewModel @Inject constructor(
                     _playListTrackState.value = PlayListTrackState(isSuccessful = result.data)
                 }
 
-                is Resource.Track -> TODO()
             }
 
         }
@@ -67,7 +66,6 @@ class SongListViewModel @Inject constructor(
                     _trackState.value = TrackState(isSuccessful = result.data)
                 }
 
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -90,7 +88,6 @@ class SongListViewModel @Inject constructor(
 
                 }
 
-                is Resource.Track -> TODO()
             }
 
         }
@@ -110,7 +107,6 @@ class SongListViewModel @Inject constructor(
                 is Resource.Success -> {
                     _artistTopState.value = ArtistTopState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }

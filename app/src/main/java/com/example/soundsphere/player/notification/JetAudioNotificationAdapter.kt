@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.util.Log
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerNotificationManager
 import com.bumptech.glide.Glide
@@ -17,17 +18,19 @@ class JetAudioNotificationAdapter(
     private val pendingIntent: PendingIntent?
 ) : PlayerNotificationManager.MediaDescriptionAdapter {
     override fun getCurrentContentTitle(player: Player): CharSequence =
-        player.mediaMetadata.albumTitle ?: "Unknown Song"
+        player.mediaMetadata.displayTitle ?: "Unknown Song"
 
     override fun createCurrentContentIntent(player: Player): PendingIntent? = pendingIntent
 
     override fun getCurrentContentText(player: Player): CharSequence =
-        player.mediaMetadata.displayTitle ?: "Unknown Artist"
+        player.mediaMetadata.albumArtist ?: "Unknown Artist"
 
     override fun getCurrentLargeIcon(
         player: Player,
         callback: PlayerNotificationManager.BitmapCallback
     ): Bitmap? {
+        player.mediaMetadata.artworkUri
+        Log.d("TAG", "getCurrentLargeIcon: ${player.mediaMetadata.artworkUri}")
         Glide.with(context)
             .asBitmap()
             .load(player.mediaMetadata.artworkUri)

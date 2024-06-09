@@ -86,6 +86,7 @@ dependencies {
     implementation("androidx.room:room-paging:2.6.1")
 
     // Dagger - Hilt
+    implementation ("com.facebook.android:facebook-login:latest.release")
     implementation ("com.google.dagger:hilt-android:2.51.1")
     kapt ("com.google.dagger:hilt-compiler:2.51.1")
     kapt("androidx.hilt:hilt-compiler:1.2.0")
@@ -114,10 +115,11 @@ dependencies {
 
     // Add the dependency for the Firebase SDK for Google Analytics
     implementation("com.google.firebase:firebase-analytics")
+    implementation ("com.google.firebase:firebase-dynamic-links")
+
 
     //Google auth dependency
     implementation ("com.google.android.gms:play-services-auth:21.1.1")
-
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
 
     // Glide

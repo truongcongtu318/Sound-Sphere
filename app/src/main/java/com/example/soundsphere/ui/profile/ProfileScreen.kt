@@ -2,6 +2,7 @@ package com.example.soundsphere.ui.profile
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,18 +38,29 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.soundsphere.R
 import com.example.soundsphere.navigation.NavigationRoutes
+import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ButtonComponent
 import com.example.soundsphere.ui.components.RoundAvatar
+import com.example.soundsphere.ui.login.LoginViewModel
+import com.example.soundsphere.ui.register.RegisterViewModel
 import com.example.soundsphere.ui.theme.roboto
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
+@SuppressLint(
+    "UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition",
+    "LogNotTimber"
+)
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
+    authViewModel: AuthViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val profileState = viewModel.profileState.collectAsState()
+     val context = LocalContext.current
     Scaffold(
         modifier = modifier
             .fillMaxSize(),
@@ -60,7 +73,7 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp)
                 .padding(top = 60.dp)
         ) {
-            val user = profileState.value.success
+            val user = FirebaseAuth.getInstance().currentUser
             Row(
                 modifier = modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -88,12 +101,14 @@ fun ProfileScreen(
                     ) {
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = user.displayName!!.toString(),
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = roboto
-                    )
+                    user.displayName?.let { it1 ->
+                        Text(
+                            text = it1,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = roboto
+                        )
+                    }
                 }
             }
 
@@ -139,11 +154,16 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(30.dp))
 
             ButtonComponent(
-                value = "Log out", 
+                value = "Log out",
                 color = Color(0x80FFFFFF),
-                colorText =Color(0xFF121212), ) {
-                viewModel.logOut()
-                navController.navigate(NavigationRoutes.Login.route)
+                colorText = Color(0xFF121212),
+            ) {
+                authViewModel.logout()
+//                navController.navigate(NavigationRoutes.Login.route)
+                Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+                navController.navigate(NavigationRoutes.Login.route) {
+                    popUpTo(0) { inclusive = true } // Xóa toàn bộ stack để không quay lại trang Home
+                }
             }
 
         }
@@ -194,13 +214,14 @@ fun YourLibrary(modifier: Modifier) {
                         .size(30.dp),
                     colorFilter = ColorFilter.tint(Color(0xBFFFFFFF))
                 )
-                Text(text = "120 Songs",
+                Text(
+                    text = "120 Songs",
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     fontFamily = roboto,
                     fontWeight = FontWeight.Medium,
                     color = Color(0x80FFFFFF)
-                    )
+                )
             }
 
         }
@@ -242,7 +263,8 @@ fun YourLibrary(modifier: Modifier) {
                         .size(30.dp),
                     colorFilter = ColorFilter.tint(Color(0xBFFFFFFF))
                 )
-                Text(text = "120 Songs",
+                Text(
+                    text = "120 Songs",
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     fontFamily = roboto,
@@ -280,14 +302,15 @@ fun YourLibrary(modifier: Modifier) {
                 horizontalAlignment = Alignment.Start
             ) {
                 Image(
-                   painter = painterResource(id = R.drawable.vector_),
+                    painter = painterResource(id = R.drawable.vector_),
                     contentDescription = null,
                     modifier = modifier
                         .padding(bottom = 10.dp)
                         .size(30.dp),
                     colorFilter = ColorFilter.tint(Color(0xBFFFFFFF))
                 )
-                Text(text = "120 Songs",
+                Text(
+                    text = "120 Songs",
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     fontFamily = roboto,

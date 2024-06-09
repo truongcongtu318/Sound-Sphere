@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,7 +19,7 @@ class ProfileViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _profileState = MutableStateFlow(ProfileState())
-    val profileState : StateFlow<ProfileState> = _profileState
+    val profileState : StateFlow<ProfileState> = _profileState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -26,11 +27,6 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun logOut () {
-        viewModelScope.launch {
-            auth.signOut()
-        }
-    }
 
     private fun getProfile() = viewModelScope.launch {
         authRepository.getProfile().collect{result->
@@ -47,7 +43,7 @@ class ProfileViewModel @Inject constructor(
                     _profileState.value = ProfileState(success = result.data)
                 }
 
-                is Resource.Track -> TODO()
+
             }
         }
     }

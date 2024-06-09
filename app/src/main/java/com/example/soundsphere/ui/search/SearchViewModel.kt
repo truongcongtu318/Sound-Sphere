@@ -51,7 +51,6 @@ class SearchViewModel @Inject constructor(
                 is Resource.Success -> {
                     _searchAlbumState.value = SearchAlbumState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -71,7 +70,6 @@ class SearchViewModel @Inject constructor(
                 is Resource.Success -> {
                     _searchArtistState.value = SearchArtistState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -91,7 +89,6 @@ class SearchViewModel @Inject constructor(
                 is Resource.Success -> {
                     _searchTrackState.value = SearchTrackState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -111,7 +108,6 @@ class SearchViewModel @Inject constructor(
                 is Resource.Success -> {
                     _searchPlayListState.value = SearchPlayListState(isSuccessful = result.data)
                 }
-                is Resource.Track -> TODO()
             }
         }
     }
@@ -131,8 +127,6 @@ class SearchViewModel @Inject constructor(
                 is Resource.Success -> {
                     _genresState.value = GenresState(isSuccessful = result.data)
                 }
-
-                is Resource.Track -> TODO()
             }
 
         }

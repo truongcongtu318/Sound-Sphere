@@ -18,21 +18,6 @@ class LibraryViewModel @Inject constructor(
     private val _libraryState = MutableStateFlow(SavedTrackState())
     val libraryState : StateFlow<SavedTrackState> = _libraryState
 
-    init {
-        viewModelScope.launch {
-            getSavedTracks()
-        }
-    }
 
-    private suspend fun getSavedTracks() {
-        fireStoreRepository.getLikedTracks(
-            onSuccess = {
-                _libraryState.value = SavedTrackState(isSuccessful = it)
-                Log.d("TAG", "getSavedTracks: $it")
-            },
-            onFailure = {
-                _libraryState.value = SavedTrackState(isError = it.message)
-            }
-        )
-    }
+
 }

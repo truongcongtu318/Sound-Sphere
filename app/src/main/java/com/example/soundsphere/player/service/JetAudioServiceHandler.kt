@@ -1,8 +1,10 @@
 package com.example.soundsphere.player.service
 
 import android.util.Log
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -39,9 +41,13 @@ class JetAudioServiceHandler @Inject constructor(
     }
 
     fun clearExoPlayer() {
-        exoPlayer.clearMediaItems()
-        exoPlayer.release()
+        exoPlayer.let {
+            it.stop()
+            it.clearMediaItems()
+            it.release()
+        }
     }
+
 
     suspend fun onPlayerEvent(
         playerEvent: PlayerEvent, selectedAudioIndex: Int = -1, seekPosition: Long = 0
@@ -95,6 +101,7 @@ class JetAudioServiceHandler @Inject constructor(
         }
     }
 
+    @androidx.annotation.OptIn(UnstableApi::class)
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             ExoPlayer.STATE_BUFFERING -> _audioState.value =
@@ -102,11 +109,14 @@ class JetAudioServiceHandler @Inject constructor(
 
             ExoPlayer.STATE_READY -> _audioState.value = JetAudioState.Ready(exoPlayer.duration)
             Player.STATE_ENDED -> {
-                TODO()
-            }
-
-            Player.STATE_IDLE -> {
-                TODO()
+                val currentIndex = exoPlayer.currentWindowIndex
+                if (currentIndex < exoPlayer.mediaItemCount - 1) {
+                    exoPlayer.seekTo(currentIndex + 1, C.TIME_UNSET)
+                    exoPlayer.playWhenReady = true
+                } else {
+                    exoPlayer.seekTo(0, C.TIME_UNSET)
+                    exoPlayer.playWhenReady = true
+                }
             }
         }
     }

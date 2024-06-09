@@ -2,10 +2,8 @@ package com.example.soundsphere
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,17 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Divider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,38 +37,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.util.Util
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import com.example.soundsphere.data.dtodeezer.albumtracks.Artist
 import com.example.soundsphere.data.model.Track
 import com.example.soundsphere.navigation.NavGraph
-import com.example.soundsphere.navigation.NavigationRoutes
-import com.example.soundsphere.player.service.JetAudioService
-import com.example.soundsphere.player.service.JetAudioState
-import com.example.soundsphere.ui.components.BottomBar
-import com.example.soundsphere.ui.components.ImageBoxSongList
-import com.example.soundsphere.ui.home.encodeUrl
-import com.example.soundsphere.ui.play.PlayViewModel
-import com.example.soundsphere.ui.play.UIEvents
-import com.example.soundsphere.ui.play.UiState
+import com.example.soundsphere.ui.auth.AuthViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.api.Distribution.BucketOptions.Linear
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.observeOn
-
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -88,8 +69,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
         setContent {
+            val authViewModel : AuthViewModel = hiltViewModel()
+            val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+            val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+            authViewModel.checkUserAuthentication()
+            if (isUserAuthenticated) {
+                authViewModel.checkEmailVerification()
+            }
+            Log.d("TAG", "onCreate: $isEmailVerified")
+            Log.d("TAG", "onCreate: $isUserAuthenticated")
             val permissionState = rememberPermissionState(
                 permission = Manifest.permission.READ_EXTERNAL_STORAGE
             )
@@ -111,8 +102,8 @@ class MainActivity : ComponentActivity() {
                 NavGraph()
             }
         }
-    }
 
+    }
 
 }
 

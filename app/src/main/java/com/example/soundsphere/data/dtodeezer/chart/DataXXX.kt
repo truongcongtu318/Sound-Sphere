@@ -1,7 +1,6 @@
 package com.example.soundsphere.data.dtodeezer.chart
 
 data class DataXXX(
-    val available: Boolean,
     val description: String,
     val fans: Int,
     val id: Int,

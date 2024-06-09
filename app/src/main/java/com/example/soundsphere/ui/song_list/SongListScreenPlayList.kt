@@ -252,7 +252,7 @@ fun SongListScreenPlayList(
                                     .size(50.dp)
                                     .clip(shape = RoundedCornerShape(5.dp))
                                     .clickable {
-                                        navController.navigate(NavigationRoutes.PlayTrack.route + "/${track.id}")
+                                        navController.navigate(NavigationRoutes.PlayTrack.route)
                                     }
                             )
 
