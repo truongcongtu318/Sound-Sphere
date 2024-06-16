@@ -74,6 +74,24 @@ fun LoginScreen(
 
     val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
     val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
+
+    LaunchedEffect(key1 = facebookState.success) {
+        if (facebookState.success != null) {
+            navController.navigate(BottomBarRoutes.Home.route)
+            Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
+        }
+    }
+    LaunchedEffect(key1 = googleState.success) {
+        if (googleState.success != null) {
+            navController.navigate(BottomBarRoutes.Home.route)
+            Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
+        }
+
+    }
 
 
     // Facebook Login launcher
@@ -84,12 +102,6 @@ fun LoginScreen(
         loginManager.createLogInActivityResultContract(callbackManager, null)
     ) {
 
-    }
-    authViewModel.checkUserAuthentication()
-    LaunchedEffect(isUserAuthenticated) {
-        if (isUserAuthenticated) {
-            authViewModel.checkEmailVerification()
-        }
     }
 
     DisposableEffect(Unit) {
@@ -113,12 +125,7 @@ fun LoginScreen(
             loginManager.unregisterCallback(callbackManager)
         }
     }
-    LaunchedEffect(key1 = facebookState.success) {
-        if (facebookState.success != null) {
-            navController.navigate(BottomBarRoutes.Home.route)
-            Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
-        }
-    }
+
 
 
     if (googleState.loading || facebookState.loading) {
@@ -131,7 +138,7 @@ fun LoginScreen(
         ) {
             CircularProgressIndicator()
         }
-    }else{
+    } else {
         Column(
             modifier = modifier
                 .background(Color(0xFF121212))
@@ -178,7 +185,9 @@ fun LoginScreen(
                     color = Color(0xBFFFFFFF),
                     colorText = Color(0xBF000000)
                 ) {
-                    navController.navigate(NavigationRoutes.Register.route)
+                    if (!isUserAuthenticated) {
+                        navController.navigate(NavigationRoutes.Register.route)
+                    }
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 SocialMediaLogIn(
@@ -197,13 +206,7 @@ fun LoginScreen(
                     }
                 }
 
-                LaunchedEffect(key1 = googleState.success) {
-                    scope.launch {
-                        if (googleState.success != null) {
-                            navController.navigate(BottomBarRoutes.Home.route)
-                        }
-                    }
-                }
+
                 Spacer(modifier = Modifier.height(20.dp))
                 SocialMediaLogIn(
                     icon = R.drawable.facebook,
@@ -224,7 +227,6 @@ fun LoginScreen(
             }
         }
     }
-
 
 
 }

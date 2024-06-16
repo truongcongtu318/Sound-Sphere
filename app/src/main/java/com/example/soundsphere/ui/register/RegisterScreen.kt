@@ -43,6 +43,7 @@ import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ButtonComponent
 import com.example.soundsphere.ui.components.MyTextField
+import com.example.soundsphere.ui.components.PasswordTextField
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
 import com.example.soundsphere.utils.Resource
@@ -68,12 +69,8 @@ fun RegisterScreen(
 
 
     authViewModel.checkUserAuthentication()
-    LaunchedEffect(isUserAuthenticated) {
-        if (isUserAuthenticated) {
-            scope.launch {
-                authViewModel.checkEmailVerification()
-            }
-        }
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
     }
 
     LaunchedEffect(registerState.error) {
@@ -82,19 +79,19 @@ fun RegisterScreen(
         }
     }
 
-    LaunchedEffect(sendMailState) {
-        when (sendMailState) {
-            is Resource.Error -> {
-                Log.d("RegisterScreen", "RegisterScreen: ${(sendMailState as Resource.Error).msg}")
-                Toast.makeText(context, (sendMailState as Resource.Error).msg, Toast.LENGTH_SHORT).show()
-            }
-            is Resource.Success -> {
-                Toast.makeText(context, "Verification email sent", Toast.LENGTH_SHORT).show()
-                navController.navigate(NavigationRoutes.WaitingVerifyEmailScreen.route)
-            }
-            else -> {}
+    Log.d("RegisterScreen", "RegisterScreen: $sendMailState")
+
+    LaunchedEffect(sendMailState.data) {
+        if (sendMailState.data == true) {
+            Toast.makeText(context, "Verification email sent", Toast.LENGTH_SHORT).show()
+            navController.navigate(NavigationRoutes.WaitingVerifyEmailScreen.route)
         }
+        if (sendMailState.data == false) {
+        Toast.makeText(context, "Verification email not sent", Toast.LENGTH_SHORT).show()
     }
+    }
+
+
 
     if (registerState.loading) {
         Row {
@@ -172,12 +169,13 @@ fun RegisterScreen(
             textAlign = TextAlign.Start
         )
         Spacer(modifier = Modifier.height(10.dp))
-        MyTextField(
+        PasswordTextField(
             value = password,
             onValueChange = { password = it },
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 15.dp),
+            isPassword = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -193,12 +191,13 @@ fun RegisterScreen(
             textAlign = TextAlign.Start
         )
         Spacer(modifier = Modifier.height(10.dp))
-        MyTextField(
+        PasswordTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 15.dp),
+            isPassword = true
         )
         Spacer(modifier = Modifier.height(40.dp))
 

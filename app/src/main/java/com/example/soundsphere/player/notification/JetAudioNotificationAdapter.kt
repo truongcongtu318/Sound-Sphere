@@ -30,7 +30,6 @@ class JetAudioNotificationAdapter(
         callback: PlayerNotificationManager.BitmapCallback
     ): Bitmap? {
         player.mediaMetadata.artworkUri
-        Log.d("TAG", "getCurrentLargeIcon: ${player.mediaMetadata.artworkUri}")
         Glide.with(context)
             .asBitmap()
             .load(player.mediaMetadata.artworkUri)

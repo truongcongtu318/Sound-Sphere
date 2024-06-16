@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Icon
@@ -28,7 +31,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,9 +47,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
+import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ImageBoxPlay
-import com.example.soundsphere.ui.firestore.firestoreViewModel
+import com.example.soundsphere.ui.components.SelectPlayListDialog
+import com.example.soundsphere.ui.download_music.DownloadMusicViewModel
+import com.example.soundsphere.ui.firestore.FireStoreViewModel
 import com.example.soundsphere.ui.theme.fontInter
+import com.example.soundsphere.utils.Resource
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -61,28 +67,37 @@ import kotlinx.coroutines.tasks.await
 @Composable
 fun PlayScreen(
     navController: NavHostController,
+    authViewModel: AuthViewModel,
     playViewModel: PlayViewModel,
-    firestoreViewModel: firestoreViewModel = hiltViewModel(),
+    downloadMusicViewModel: DownloadMusicViewModel,
+    firestoreViewModel: FireStoreViewModel = hiltViewModel(),
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-
-
-    val scope = rememberCoroutineScope()
-    val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-    val lastUrl = "/500x500-000000-80-0-0.jpg"
-    val likeTrackState = firestoreViewModel.likedTracks.collectAsState().value
-    val fireStoreState = firestoreViewModel.savedTracks.collectAsState().value
     val context = LocalContext.current
-    var icons by remember { mutableStateOf(Icons.Filled.FavoriteBorder) } // Default icon is set to border
+    var showDialog by remember { mutableStateOf(false) }
+    val allPlaylist = firestoreViewModel.allPlaylists.collectAsState().value
+    val addSongToPlaylist = firestoreViewModel.addSongToPlaylist.collectAsState().value
+    var icons by remember { mutableStateOf(Icons.Filled.FavoriteBorder) }
     val userTracksCollection =
         FirebaseFirestore.getInstance().collection("favourites")
             .document(FirebaseAuth.getInstance().currentUser?.email.toString())
-            .collection("tracks")
+            .collection("songs")
 
-    Log.d("currentTrack", playViewModel.currentSelectedTrack.toString())
+    val createPlaylist = firestoreViewModel.createPlaylist.collectAsState().value
+    LaunchedEffect(key1 = createPlaylist.data) {
+        FirebaseAuth.getInstance().currentUser?.email?.let {
+            firestoreViewModel.getAllPlaylists(FirebaseAuth.getInstance().currentUser?.email.toString())
+        }
+    }
 
+    val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+    val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
     LaunchedEffect(playViewModel.currentSelectedTrack) {
-        userTracksCollection.document(playViewModel.currentSelectedTrack.id.toString()).get()
+        userTracksCollection.document(playViewModel.currentSelectedTrack.title).get()
             .await()
             ?.let { document ->
                 Log.d("Document", "${document.exists()}")
@@ -91,11 +106,37 @@ fun PlayScreen(
                 } else {
                     Icons.Filled.FavoriteBorder
                 }
-
             }
     }
 
+    LaunchedEffect(key1 = addSongToPlaylist) {
+        if (addSongToPlaylist is Resource.Success) {
+            Toast.makeText(context, "Song added to playlist", Toast.LENGTH_SHORT).show()
+        }
+        if (addSongToPlaylist is Resource.Error) {
+            Toast.makeText(context, addSongToPlaylist.msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
+
+    val playlists = allPlaylist.data.let {item->
+        item?.map {
+            it.playlistName
+        }
+    }
+
+    if (showDialog) {
+        playlists?.let { it ->
+            SelectPlayListDialog(playlists = it, onDismiss = { showDialog = false }) {
+                firestoreViewModel.addSongToPlaylist(
+                    it,
+                    song = playViewModel.currentSelectedTrack,
+                    email = FirebaseAuth.getInstance().currentUser?.email.toString()
+                )
+                showDialog = false
+            }
+        }
+    }
 
 
     Column(
@@ -128,12 +169,12 @@ fun PlayScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            playViewModel.currentSelectedTrack.let { track ->
+            playViewModel.currentSelectedTrack.let { song ->
                 ImageBoxPlay(
                     modifier = modifier
                         .size(380.dp)
                         .align(Alignment.CenterHorizontally),
-                    imageUrl = (baseUrl + track.md5_image + lastUrl)
+                    imageUrl = (song.picture)
                 )
                 Spacer(modifier = Modifier.height(25.dp))
                 Row(
@@ -147,21 +188,19 @@ fun PlayScreen(
                             .weight(1f)
                             .align(Alignment.CenterVertically)
                     ) {
-                        track.title_short?.let {
-                            Text(
-                                text = it,
-                                color = Color(0xFFFFFFFF),
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Start,
-                                modifier = Modifier.fillMaxWidth(1f),
-                                fontFamily = fontInter,
-                                fontSize = 20.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = song.title,
+                            color = Color(0xFFFFFFFF),
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.fillMaxWidth(1f),
+                            fontFamily = fontInter,
+                            fontSize = 20.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Spacer(modifier = Modifier.height(10.dp))
-                        track.artist?.let {
+                        song.artist?.let {
                             Text(
                                 text = it.name,
                                 color = Color(0xBFFFFFFF),
@@ -177,10 +216,8 @@ fun PlayScreen(
                     }
                     IconButton(
                         onClick = {
-                            Log.d("liked", track.toString())
-                            Log.d("liked",  FirebaseAuth.getInstance().currentUser?.email.toString() )
-                            firestoreViewModel.savedLikedTrack(
-                                track,
+                            firestoreViewModel.savedLikedSong(
+                                song,
                                 FirebaseAuth.getInstance().currentUser?.email.toString()
                             )
                             icons = if (icons == Icons.Filled.FavoriteBorder) {
@@ -198,6 +235,32 @@ fun PlayScreen(
                         )
                     }
 
+                    IconButton(
+                        onClick = {
+                            downloadMusicViewModel.downloadMusic(song.url, song.title)
+                        }) {
+                        Icon(
+                            imageVector = Icons.Default.Downloading,
+                            contentDescription = null,
+                            tint = Color(0xBFFFFFFF),
+                            modifier = modifier.size(45.dp)
+
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            showDialog = true
+                        }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Color(0xBFFFFFFF),
+                            modifier = modifier.size(45.dp)
+
+                        )
+                    }
+
                 }
             }
 
@@ -208,7 +271,7 @@ fun PlayScreen(
             Slider(
                 value = playViewModel.progress,
                 onValueChange = { playViewModel.onUiEvent(UIEvents.SeekTo(it)) },
-                valueRange = 1f..190f,
+                valueRange = 0f..playViewModel.currentSelectedTrack.duration.toFloat(),
                 modifier = Modifier
                     .padding(vertical = 10.dp)
                     .fillMaxWidth(1f),
@@ -216,6 +279,7 @@ fun PlayScreen(
                     thumbColor = Color(0xBFFFFFFF), activeTrackColor = Color(0xBFFFFFFF)
                 )
             )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -223,7 +287,7 @@ fun PlayScreen(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = playViewModel.formatDuration(30), color = Color.White)
+                Text(text = playViewModel.formatDuration((playViewModel.currentSelectedTrack.duration * 1000).toLong()), color = Color.White)
             }
 
 

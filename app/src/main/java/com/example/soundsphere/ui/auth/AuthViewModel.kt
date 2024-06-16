@@ -7,17 +7,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soundsphere.data.repository.AuthRepository
 import com.example.soundsphere.player.service.JetAudioServiceHandler
-import com.example.soundsphere.player.service.JetAudioState
 import com.example.soundsphere.ui.login.FacebookLoginState
 import com.example.soundsphere.ui.login.GoogleLoginState
 import com.example.soundsphere.ui.login.LoginState
-import com.example.soundsphere.ui.play.UIEvents
 import com.example.soundsphere.ui.register.RegisterState
-import com.example.soundsphere.ui.register.SendMailState
 import com.example.soundsphere.utils.Resource
 import com.facebook.AccessToken
+import com.google.firebase.Firebase
 import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +28,6 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val auth: FirebaseAuth,
-    private val serviceHandler: JetAudioServiceHandler,
 ) : ViewModel() {
 
     private val _googleState = mutableStateOf(GoogleLoginState())
@@ -52,6 +50,8 @@ class AuthViewModel @Inject constructor(
 
     private val _isEmailVerified = MutableStateFlow(false)
     val isEmailVerified: StateFlow<Boolean> = _isEmailVerified
+
+
 
     init {
         checkUserAuthentication()
@@ -154,13 +154,42 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun logout() {
-        auth.signOut()
-//        serviceHandler.clearExoPlayer()
-        _isUserAuthenticated.value = false
-        _isEmailVerified.value = false
-        _loginState.value = LoginState()
-        _googleState.value = GoogleLoginState()
+    fun logout() = viewModelScope.launch {
         _facebookState.value = FacebookLoginState()
+        _googleState.value = GoogleLoginState()
+        _loginState.value = LoginState()
+        _registerState.value = RegisterState()
+        _isEmailVerified.value = false
+        _isUserAuthenticated.value = false
+        _sendVerificationState.value = Resource.Success(false)
+        FirebaseAuth.getInstance().signOut()
     }
+
+    fun deleteUser(email: String, password: String, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+
+        if (user != null) {
+            // Re-authenticate the user
+            val credential = EmailAuthProvider.getCredential(email, password)
+            user.reauthenticate(credential)
+                .addOnCompleteListener { reauthTask ->
+                    if (reauthTask.isSuccessful) {
+                        user.delete()
+                            .addOnCompleteListener { deleteTask ->
+                                if (deleteTask.isSuccessful) {
+                                    onSuccess()
+                                } else {
+                                    onFailure(deleteTask.exception ?: Exception("Failed to delete user"))
+                                }
+                            }
+                    } else {
+                        onFailure(reauthTask.exception ?: Exception("Re-authentication failed"))
+                    }
+                }
+        } else {
+            onFailure(Exception("No user is currently signed in"))
+        }
+    }
+
 }

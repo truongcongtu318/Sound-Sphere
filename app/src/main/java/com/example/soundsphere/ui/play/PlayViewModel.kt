@@ -1,7 +1,6 @@
 package com.example.soundsphere.ui.play
 
 import android.annotation.SuppressLint
-import android.util.Log.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
@@ -11,7 +10,9 @@ import androidx.lifecycle.viewmodel.compose.SavedStateHandleSaveableApi
 import androidx.lifecycle.viewmodel.compose.saveable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import com.example.soundsphere.data.model.Track
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
+import com.example.soundsphere.data.model.Song
 import com.example.soundsphere.player.service.JetAudioServiceHandler
 import com.example.soundsphere.player.service.JetAudioState
 import com.example.soundsphere.player.service.PlayerEvent
@@ -24,11 +25,11 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
-val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-val lastUrl = "/500x500-000000-80-0-0.jpg"
+
 @SuppressLint("LogNotTimber")
 @HiltViewModel
-class PlayViewModel @Inject constructor(
+class PlayViewModel @androidx.annotation.OptIn(UnstableApi::class)
+@Inject constructor(
     private val serviceHandler: JetAudioServiceHandler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -54,35 +55,38 @@ class PlayViewModel @Inject constructor(
 
     @OptIn(SavedStateHandleSaveableApi::class)
     var currentSelectedTrack by savedStateHandle.saveable {
-        mutableStateOf(Track())
+        mutableStateOf(Song())
     }
 
     @OptIn(SavedStateHandleSaveableApi::class)
     var trackList by savedStateHandle.saveable {
-        mutableStateOf(listOf<Track>())
+        mutableStateOf(listOf<Song>())
     }
 
-    @OptIn(SavedStateHandleSaveableApi::class)
-    var trackListUrl by savedStateHandle.saveable {
-        mutableStateOf("")
-    }
 
     private val _uiState: MutableStateFlow<UiState> = MutableStateFlow(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
 
+
     init {
+        observeAudioState()
+    }
+
+
+    @androidx.annotation.OptIn(UnstableApi::class)
+    private fun observeAudioState() {
         viewModelScope.launch {
             serviceHandler.audioState.collectLatest { mediaState ->
                 when (mediaState) {
                     is JetAudioState.Buffering -> calculateProgressValue(mediaState.progress)
                     is JetAudioState.CurrentPlaying -> {
                         if (trackList.isNotEmpty() && mediaState.mediaItemIndex in trackList.indices) {
-                            if (mediaState.mediaItemIndex != 0) {
+                            if (mediaState.mediaItemIndex !=0) {
                                 currentSelectedTrack = trackList[mediaState.mediaItemIndex]
                             }
                         } else {
-                            w(
+                            Log.w(
                                 "PlayViewModel",
                                 "trackList is empty or mediaItemIndex is out of bounds, cannot set currentSelectedTrack."
                             )
@@ -96,38 +100,47 @@ class PlayViewModel @Inject constructor(
                         duration = mediaState.duration
                         _uiState.value = UiState.Ready
                     }
-                }
 
+                    else -> {
+                    }
+
+                }
             }
         }
     }
 
-
-    internal fun setCurrentTrackSelected(track: Track) {
-        this.currentSelectedTrack = track
+    internal fun setCurrentTrackSelected(song: Song) {
+        this.currentSelectedTrack = song
         serviceHandler.addMediaItem(
-            MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
-                MediaMetadata.Builder().setAlbumArtist(track.artist?.name)
-                    .setDisplayTitle(track.title).setSubtitle(track.album?.cover_xl).build()
+            MediaItem.Builder().setUri(song.url.toUri()).setMediaMetadata(
+                MediaMetadata.Builder().setAlbumArtist(song.artist?.name)
+                    .setDisplayTitle(song.title)
+                    .build()
             ).build()
         )
         setMediaItems()
     }
 
+
+
+    @androidx.annotation.OptIn(UnstableApi::class)
     private fun setMediaItems() {
-        trackList.map { track ->
-            val imageUri = baseUrl + track.md5_image + lastUrl
-            MediaItem.Builder().setUri(track.preview?.toUri()).setMediaMetadata(
+        trackList.map { song ->
+            val imageUri = song.picture
+            MediaItem.Builder().setUri(song.url.toUri()).setMediaMetadata(
                 MediaMetadata.Builder()
-                    .setAlbumArtist(track.artist?.name)
-                    .setDisplayTitle(track.title)
-                    .setSubtitle(track.title)
+                    .setAlbumArtist(song.artist?.name)
+                    .setDisplayTitle(song.title)
+                    .setSubtitle(song.title)
                     .setArtworkUri(imageUri.toUri())
                     .build()
             ).build()
         }.also { it ->
             val indexCurrentSelected =
-                trackList.indexOf(trackList.find { it.id == currentSelectedTrack.id })
+                trackList.indexOf(trackList.find {
+                    it.title == currentSelectedTrack.title
+                })
+            Log.d("PlayViewModel", "setMediaItems: $currentSelectedTrack")
             val startIndex = if (indexCurrentSelected < 0) {
                 0
             } else {
@@ -148,10 +161,11 @@ class PlayViewModel @Inject constructor(
 
     @SuppressLint("DefaultLocale")
     fun formatDuration(duration: Long): String {
-        val minute = TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS)
-        val seconds = (minute) - minute * TimeUnit.SECONDS.convert(1, TimeUnit.MINUTES)
-        return String.format("%02d:%02d", minute, seconds)
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(duration)
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(duration) % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
+
 
     fun onUiEvent(event: UIEvents) = viewModelScope.launch {
         when (event) {
@@ -217,3 +231,4 @@ sealed class UiState {
     object Initial : UiState()
     object Ready : UiState()
 }
+

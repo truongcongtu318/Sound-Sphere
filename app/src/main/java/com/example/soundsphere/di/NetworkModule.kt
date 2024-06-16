@@ -1,10 +1,7 @@
 package com.example.soundsphere.di
 
-import com.example.soundsphere.data.remote.DeezerApiService
 import com.example.soundsphere.data.repository.AuthRepository
 import com.example.soundsphere.data.repository.AuthRepositoryImpl
-import com.example.soundsphere.data.repository.DeezerRepository
-import com.example.soundsphere.data.repository.DeezerRepositoryImpl
 import com.example.soundsphere.data.repository.FireStoreRepository
 import com.example.soundsphere.data.repository.FireStoreRepositoryImpl
 import com.example.soundsphere.utils.Constants
@@ -14,7 +11,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
@@ -30,18 +26,6 @@ class NetworkModule {
             .baseUrl(Constants.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
-
-    @Singleton
-    @Provides
-    fun provideSoundSphereRepository(apiService: DeezerApiService): DeezerRepository {
-        return DeezerRepositoryImpl(apiService)
-    }
-
-    @Singleton
-    @Provides
-    fun provideSoundSphereApiService(retrofit: Retrofit): DeezerApiService {
-        return retrofit.create(DeezerApiService::class.java)
     }
 
 

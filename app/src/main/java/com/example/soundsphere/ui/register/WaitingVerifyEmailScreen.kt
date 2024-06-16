@@ -1,5 +1,6 @@
 package com.example.soundsphere.ui.register
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -31,12 +32,13 @@ fun WaitingVerifyEmailScreen(
     authViewModel: AuthViewModel
 ) {
 
-    val context = LocalContext.current
-
     val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
     val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
-
-    authViewModel.checkEmailVerification()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
+    Log.d("TAG", "WaitingVerifyEmailScreen: $isEmailVerified")
     LaunchedEffect(isEmailVerified) {
         if (isEmailVerified) {
             navController.navigate(NavigationRoutes.Login.route) {

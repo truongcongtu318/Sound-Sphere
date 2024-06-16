@@ -18,7 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PauseCircleFilled
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,53 +50,55 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.soundsphere.R
-import com.example.soundsphere.data.dtodeezer.playlisttracks.Data
-import com.example.soundsphere.data.model.Track
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.components.ImageBoxSongList
+import com.example.soundsphere.ui.firestore.FireStoreViewModel
 import com.example.soundsphere.ui.home.encodeUrl
 import com.example.soundsphere.ui.play.PlayViewModel
 import com.example.soundsphere.ui.play.UIEvents
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
+import com.example.soundsphere.utils.Resource
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
-fun com.example.soundsphere.data.dtodeezer.playlist.Data.toTrack(): Track {
-    return Track(
-        id = this.id,
-        artist = this.artist,
-        duration = this.duration,
-        link = this.link,
-        md5_image = this.md5_image,
-        preview = this.preview,
-        rank = this.rank,
-        readable = this.readable,
-        title = this.title,
-        title_short = this.title_short,
-        title_version = this.title_version,
-        type = this.type
-    )
-}
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @Composable
 fun SongListScreenPlayList(
-    urlTrackList: String,
-    idPlayList: String,
-    songListViewModel: SongListViewModel,
+    playlistName: String,
     navController: NavHostController,
     playViewModel: PlayViewModel,
+    fireStoreViewModel: FireStoreViewModel,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
 
-    val playListTrackState = songListViewModel.playListTrackState.collectAsState()
-    val playListState = songListViewModel.playListState.collectAsState()
-    val trackList = playListState.value.isSuccessful?.tracks?.data?.map {
-        it.toTrack()
-    }
-    playViewModel.trackList = trackList.orEmpty()
+    var icons by remember { mutableStateOf(Icons.Filled.FavoriteBorder) }
+    val userTracksCollection =
+        FirebaseFirestore.getInstance().collection("favourites")
+            .document(FirebaseAuth.getInstance().currentUser?.email.toString())
+            .collection("playlists")
+
+    val playListByName = fireStoreViewModel.playlistByName.collectAsState().value
+
+
+//    LaunchedEffect(Unit) {
+//        userTracksCollection.document(playListState.value.isSuccessful?.id.toString()).get()
+//            .await()
+//            ?.let { document ->
+//                icons = if (document.exists()) {
+//                    Icons.Filled.Favorite
+//                } else {
+//                    Icons.Filled.FavoriteBorder
+//                }
+//            }
+//    }
     LaunchedEffect(Unit) {
-        songListViewModel.getPlayListTracks(urlTrackList)
-        songListViewModel.getPlayList(idPlayList)
+        fireStoreViewModel.getPlayListByName(
+            playlistName,
+            FirebaseAuth.getInstance().currentUser?.email.toString()
+        )
     }
 
     Scaffold(
@@ -103,7 +111,7 @@ fun SongListScreenPlayList(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (playListState.value.isLoading || playListTrackState.value.isLoading) {
+            if (playListByName is Resource.Loading) {
                 CircularProgressIndicator()
             }
         }
@@ -113,9 +121,8 @@ fun SongListScreenPlayList(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Top
         ) {
-            val playListTrack = playListTrackState.value.isSuccessful
-            val playlist = playListState.value.isSuccessful
-            if (playlist != null) {
+            val playlistSongs = playListByName.data?.songs
+            if (playlistSongs != null) {
                 Column(
                     modifier = modifier
                         .fillMaxWidth()
@@ -123,14 +130,16 @@ fun SongListScreenPlayList(
                     verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.Start
                 ) {
-                    ImageBoxSongList(
-                        imageUrl = playlist.picture_big,
-                        text = playlist.title,
-                        modifier = modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight()
-                            .clip(shape = RoundedCornerShape(0.dp))
-                    )
+                    playlistSongs.firstOrNull()?.let { it1 ->
+                        ImageBoxSongList(
+                            imageUrl = it1.picture,
+                            text = it1.title,
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .clip(shape = RoundedCornerShape(0.dp))
+                        )
+                    }
                 }
                 Column(modifier = modifier.padding(20.dp)) {
                     Row(
@@ -139,7 +148,7 @@ fun SongListScreenPlayList(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Type: ${playlist.type}",
+                            text = "Type: Playlist",
                             color = Color(0xBFFFFFFF),
                             fontWeight = FontWeight.Medium,
                             fontFamily = roboto,
@@ -152,7 +161,7 @@ fun SongListScreenPlayList(
                         )
 
                         Text(
-                            text = "${playlist.tracks.data.size} songs",
+                            text = "${playlistSongs.size} songs",
                             color = Color(0xBFFFFFFF),
                             fontWeight = FontWeight.Medium,
                             fontFamily = roboto,
@@ -171,12 +180,21 @@ fun SongListScreenPlayList(
                             horizontalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
                             Image(
-                                imageVector = Icons.Filled.FavoriteBorder,
+                                imageVector = icons,
                                 contentDescription = null,
                                 colorFilter = ColorFilter.tint(Color(0xBFFFFFFF)),
                                 modifier = modifier
                                     .padding(top = 10.dp)
                                     .size(30.dp)
+                                    .clickable {
+//                                        fireStoreViewModel.savedLikedPlayList(playlist,
+//                                            FirebaseAuth.getInstance().currentUser?.email.toString())
+//                                        icons = if (icons == Icons.Filled.FavoriteBorder) {
+//                                            Icons.Filled.Favorite
+//                                        } else {
+//                                            Icons.Filled.FavoriteBorder
+//                                        }
+                                    }
                             )
                             Image(
                                 imageVector = Icons.Filled.Downloading, contentDescription = null,
@@ -194,16 +212,17 @@ fun SongListScreenPlayList(
                             )
                         }
                         Image(
-                            imageVector = Icons.Filled.PlayCircleFilled,
+                            imageVector = if (playViewModel.isPlaying) Icons.Filled.PauseCircleFilled
+                            else Icons.Filled.PlayCircleFilled,
                             contentDescription = null,
                             colorFilter = ColorFilter.tint(Color(0xBFFFFFFF)),
                             modifier = modifier
                                 .size(60.dp)
                                 .clickable {
-                                    trackList?.let { it1 ->
-                                        playViewModel.setCurrentTrackSelected(
-                                            it1.first()
-                                        )
+                                    if (playViewModel.currentSelectedTrack.url == "") {
+                                        playlistSongs
+                                            .firstOrNull()
+                                            ?.let { it1 -> playViewModel.setCurrentTrackSelected(it1) }
                                     }
                                     playViewModel.onUiEvent(UIEvents.PlayPause)
                                 }
@@ -211,7 +230,7 @@ fun SongListScreenPlayList(
                     }
                 }
             }
-            if (playListTrack != null) {
+            if (playlistSongs != null) {
                 LazyColumn(
                     modifier = modifier
                         .fillMaxWidth()
@@ -221,16 +240,15 @@ fun SongListScreenPlayList(
                 ) {
                     val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
                     val lastUrl = "/500x500-000000-80-0-0.jpg"
-                    items(trackList.orEmpty()) { track ->
-                        if (track.preview == "") return@items
+                    items(playlistSongs) { song ->
+                        if (song.url == "") return@items
                         Row(
                             modifier = modifier
                                 .fillMaxWidth()
                                 .height(70.dp)
                                 .padding(horizontal = 20.dp)
                                 .clickable {
-                                    Log.d("TrackList", "Preview: ${track.preview}")
-                                    playViewModel.setCurrentTrackSelected(track)
+                                    playViewModel.setCurrentTrackSelected(song)
                                     playViewModel.onUiEvent(UIEvents.PlayPause)
                                 },
                             verticalAlignment = Alignment.CenterVertically,
@@ -241,7 +259,7 @@ fun SongListScreenPlayList(
 
                                 painter = rememberAsyncImagePainter(
                                     ImageRequest.Builder(LocalContext.current)
-                                        .data(data = baseUrl + track.md5_image + lastUrl)
+                                        .data(data = song.picture)
                                         .apply(block = fun ImageRequest.Builder.() {
                                             crossfade(true)
                                         }).build()
@@ -264,7 +282,7 @@ fun SongListScreenPlayList(
                                 horizontalAlignment = Alignment.Start
                             ) {
                                 Text(
-                                    text = track.title ?: "",
+                                    text = song.title,
                                     color = Color(0xFFFFFFFF),
                                     fontWeight = FontWeight.Medium,
                                     fontFamily = fontInter,
@@ -272,7 +290,7 @@ fun SongListScreenPlayList(
                                     letterSpacing = 1.sp
                                 )
 
-                                track.artist?.let { it1 ->
+                                song.artist?.let { it1 ->
                                     Text(
                                         text = it1.name,
                                         color = Color(0x80FFFFFF),

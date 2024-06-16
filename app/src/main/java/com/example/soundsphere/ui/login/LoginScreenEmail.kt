@@ -1,10 +1,10 @@
 package com.example.soundsphere.ui.login
 
 import android.annotation.SuppressLint
-import android.util.Log
-import android.widget.ImageButton
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -30,25 +31,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.example.soundsphere.navigation.BottomBarRoutes
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ButtonComponent
 import com.example.soundsphere.ui.components.MyTextField
-import com.example.soundsphere.ui.register.RegisterViewModel
-import com.example.soundsphere.ui.theme.fontInter
+import com.example.soundsphere.ui.components.PasswordTextField
 import com.example.soundsphere.ui.theme.roboto
 import com.example.soundsphere.utils.Resource
 import com.google.firebase.auth.FirebaseAuth
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @SuppressLint("LogNotTimber")
 @Composable
 fun LoginScreenEmail(
@@ -62,18 +63,39 @@ fun LoginScreenEmail(
 
     val loginState = authViewModel.loginState.collectAsState().value
 
+    val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+    val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
+
+    Log.d("LoginScreenEmail", "loginState: $loginState")
+
     LaunchedEffect(loginState) {
-        if (loginState.isSuccess != null && FirebaseAuth.getInstance().currentUser?.isEmailVerified == true) {
-            navController.navigate(BottomBarRoutes.Home.route) {
-                popUpTo(NavigationRoutes.Login.route) { inclusive = true }
-            }
+        if (loginState.isSuccess != null && isEmailVerified) {
+//            navController.navigate(BottomBarRoutes.Home.route) {
+//                popUpTo(NavigationRoutes.Login.route) { inclusive = true }
+//            }
             Toast.makeText(context, "Login successfully", Toast.LENGTH_SHORT).show()
-        } else if(loginState.isError != "") {
-            authViewModel.sendEmailVerification()
-            Toast.makeText(context, "Please verify your email", Toast.LENGTH_SHORT).show()
+        }
+        if (loginState.isError != "") {
+            Toast.makeText(context, loginState.isError, Toast.LENGTH_SHORT).show()
         }
     }
 
+
+
+    Column(
+        modifier = modifier
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (loginState.isLoading) {
+            CircularProgressIndicator()
+        }
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -143,28 +165,19 @@ fun LoginScreenEmail(
             textAlign = TextAlign.Start
         )
         Spacer(modifier = Modifier.height(10.dp))
-        MyTextField(
+        PasswordTextField(
             value = password,
             onValueChange = { password = it },
             modifier = modifier
                 .fillMaxWidth()
                 .padding(horizontal = 15.dp),
+            isPassword = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            modifier = modifier
-                .fillMaxWidth(1f)
-                .padding(start = 15.dp),
-            text = "Confirm your password",
-            color = Color(0xBFFFFFFF),
-            fontSize = 20.sp,
-            fontFamily = roboto,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Start
-        )
 
-        Spacer(modifier = Modifier.height(40.dp))
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         ButtonComponent(
             value = "Login",
@@ -176,6 +189,10 @@ fun LoginScreenEmail(
             color = Color(0xFF777777),
             colorText = Color(0xFF000000),
             onClicked = {
+                if (email.isEmpty() || password.isEmpty()) {
+                    Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                    return@ButtonComponent
+                }
                 authViewModel.loginWithEmailAndPassword(email, password)
             }
 

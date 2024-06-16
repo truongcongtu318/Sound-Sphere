@@ -1,7 +1,6 @@
 package com.example.soundsphere.ui.song_list
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,8 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,62 +41,61 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.soundsphere.R
-import com.example.soundsphere.data.dtodeezer.artist_top.ArtistTopDto
-import com.example.soundsphere.data.dtodeezer.artist_top.Data
-import com.example.soundsphere.data.model.Track
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.components.ImageBoxSongList
-import com.example.soundsphere.ui.home.HomeViewModel
-import com.example.soundsphere.ui.home.encodeUrl
+import com.example.soundsphere.ui.firestore.FireStoreViewModel
 import com.example.soundsphere.ui.play.PlayViewModel
 import com.example.soundsphere.ui.play.UIEvents
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
+import com.example.soundsphere.utils.Resource
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
-fun Data.toTrack(): Track {
-    return Track(
-        id = this.id,
-        artist = this.artist,
-        duration = this.duration,
-        link = this.link,
-        md5_image = this.md5_image,
-        preview = this.preview,
-        rank = this.rank,
-        readable = this.readable,
-        title = this.title,
-        title_short = this.title_short,
-        title_version = this.title_version,
-        type = this.type
-    )
-}
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @Composable
 fun SongListScreenArtist(
-    urlTrackList: String,
-    songListViewModel: SongListViewModel,
+    idArtist: String,
     playViewModel: PlayViewModel,
     navController: NavHostController,
+    fireStoreViewModel: FireStoreViewModel,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
 
-    val artistTopState = songListViewModel.artistTopState.collectAsState()
+    var icons by remember { mutableStateOf(Icons.Filled.FavoriteBorder) }
+    val userTracksCollection =
+        FirebaseFirestore.getInstance().collection("favourites")
+            .document(FirebaseAuth.getInstance().currentUser?.email.toString())
+            .collection("artists")
+
+    val songsByIdArtist = fireStoreViewModel.songsByArtistId.collectAsState().value
+
     LaunchedEffect(Unit) {
-        songListViewModel.getArtistTop(urlTrackList)
+        fireStoreViewModel.getSongsByArtistId(idArtist)
     }
-    val trackList = artistTopState.value.isSuccessful?.data?.map {
-        it.toTrack()
+
+    if (songsByIdArtist.data != null) {
+        playViewModel.trackList = songsByIdArtist.data!!
     }
-    playViewModel.trackList = trackList.orEmpty()
-    playViewModel.trackListUrl = encodeUrl(urlTrackList)
+
+//    LaunchedEffect(Unit) {
+//        userTracksCollection.document(encodeUrl(urlTrackList)).get()
+//            .await()
+//            ?.let { document ->
+//                icons = if (document.exists()) {
+//                    Icons.Filled.Favorite
+//                } else {
+//                    Icons.Filled.FavoriteBorder
+//                }
+//            }
+//    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -107,7 +107,7 @@ fun SongListScreenArtist(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (artistTopState.value.isLoading) {
+            if (songsByIdArtist is Resource.Loading) {
                 CircularProgressIndicator()
             }
         }
@@ -117,11 +117,7 @@ fun SongListScreenArtist(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Top
         ) {
-            val artistTop = artistTopState.value.isSuccessful
-
-            if (artistTop != null) {
-                val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-                val lastUrl = "/500x500-000000-80-0-0.jpg"
+            if (songsByIdArtist.data != null) {
                 Column(
                     modifier = modifier
                         .fillMaxWidth()
@@ -130,8 +126,8 @@ fun SongListScreenArtist(
                     horizontalAlignment = Alignment.Start
                 ) {
                     ImageBoxSongList(
-                        imageUrl = baseUrl + artistTop.data.firstOrNull()!!.md5_image + lastUrl,
-                        text = artistTop.data.firstOrNull()!!.album.title,
+                        imageUrl = songsByIdArtist.data?.firstOrNull()?.picture,
+                        text = songsByIdArtist.data?.firstOrNull()?.artist?.name ?: "Unknown",
                         modifier = modifier
                             .fillMaxWidth()
                             .fillMaxHeight()
@@ -145,7 +141,7 @@ fun SongListScreenArtist(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Type: ${artistTop.data.firstOrNull()!!.type}",
+                            text = "Type: Artist",
                             color = Color(0xBFFFFFFF),
                             fontWeight = FontWeight.Medium,
                             fontFamily = roboto,
@@ -158,7 +154,7 @@ fun SongListScreenArtist(
                         )
 
                         Text(
-                            text = "${artistTop.data.size} songs",
+                            text = "${songsByIdArtist.data?.size ?: 0} songs",
                             color = Color(0xBFFFFFFF),
                             fontWeight = FontWeight.Medium,
                             fontFamily = roboto,
@@ -177,7 +173,7 @@ fun SongListScreenArtist(
                             horizontalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
                             Image(
-                                imageVector = Icons.Filled.FavoriteBorder,
+                                imageVector = icons,
                                 contentDescription = null,
                                 colorFilter = ColorFilter.tint(Color(0xBFFFFFFF)),
                                 modifier = modifier
@@ -207,21 +203,19 @@ fun SongListScreenArtist(
                             modifier = modifier
                                 .size(60.dp)
                                 .clickable {
-                                    if (playViewModel.currentSelectedTrack.id != null) {
-                                        playViewModel.onUiEvent(UIEvents.PlayPause)
+                                    if (playViewModel.currentSelectedTrack.url == ""){
+                                        songsByIdArtist.data?.firstOrNull()
+                                            ?.let { it1 -> playViewModel.setCurrentTrackSelected(it1) }
                                     }
-                                    trackList?.let { it1 ->
-                                        playViewModel.setCurrentTrackSelected(
-                                            it1.first()
-                                        )
-                                    }
+                                    playViewModel.onUiEvent(UIEvents.PlayPause)
+
 
                                 }
                         )
                     }
                 }
             }
-            if (artistTop != null) {
+            if (songsByIdArtist.data != null) {
                 LazyColumn(
                     modifier = modifier
                         .fillMaxWidth()
@@ -229,17 +223,17 @@ fun SongListScreenArtist(
                     verticalArrangement = Arrangement.Top,
                     horizontalAlignment = Alignment.Start
                 ) {
-                    val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-                    val lastUrl = "/500x500-000000-80-0-0.jpg"
-                    items(trackList.orEmpty()) { track ->
-                        if (track.preview == "") return@items
+                    if (songsByIdArtist.data.isNullOrEmpty())
+                        return@LazyColumn
+                    items(songsByIdArtist.data.orEmpty()) { song ->
+                        if (song.url == "") return@items
                         Row(
                             modifier = modifier
                                 .fillMaxWidth()
                                 .height(70.dp)
                                 .padding(horizontal = 20.dp)
                                 .clickable {
-                                    playViewModel.setCurrentTrackSelected(track)
+                                    playViewModel.setCurrentTrackSelected(song)
                                     playViewModel.onUiEvent(UIEvents.PlayPause)
                                 },
                             verticalAlignment = Alignment.CenterVertically,
@@ -249,7 +243,7 @@ fun SongListScreenArtist(
                             Image(
                                 painter = rememberAsyncImagePainter(
                                     ImageRequest.Builder(LocalContext.current)
-                                        .data(data = baseUrl + track.md5_image + lastUrl)
+                                        .data(data = song.picture)
                                         .apply(block = fun ImageRequest.Builder.() {
                                             crossfade(true)
                                         }).build()
@@ -271,18 +265,16 @@ fun SongListScreenArtist(
                                 verticalArrangement = Arrangement.Center,
                                 horizontalAlignment = Alignment.Start
                             ) {
-                                track.title?.let { it1 ->
-                                    Text(
-                                        text = it1,
-                                        color = Color(0xFFFFFFFF),
-                                        fontWeight = FontWeight.Medium,
-                                        fontFamily = fontInter,
-                                        fontSize = 16.sp,
-                                        letterSpacing = 1.sp
-                                    )
-                                }
+                                Text(
+                                    text = song.title,
+                                    color = Color(0xFFFFFFFF),
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = fontInter,
+                                    fontSize = 16.sp,
+                                    letterSpacing = 1.sp
+                                )
 
-                                track.artist?.name?.let { it1 ->
+                                song.artist?.name?.let { it1 ->
                                     Text(
                                         text = it1,
                                         color = Color(0x80FFFFFF),
@@ -302,7 +294,6 @@ fun SongListScreenArtist(
                 }
             }
         }
-
     }
 }
 

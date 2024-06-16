@@ -1,6 +1,8 @@
 package com.example.soundsphere.ui.components
 
+import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,24 +21,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +52,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,12 +64,266 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.example.soundsphere.R
+import com.example.soundsphere.data.model.Song
 import com.example.soundsphere.navigation.BottomBarRoutes
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
+import androidx.compose.material3.*
+import androidx.compose.runtime.MutableState
+import androidx.compose.ui.text.input.KeyboardType
+
+
+@Composable
+fun ReAuthDialog(
+    onReAuth: (String, String) -> Unit,
+    showDialog: MutableState<Boolean>,
+    onDismissRequest: () -> Unit,
+) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = { onDismissRequest() },
+            title = { Text("Re-authenticate") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Email") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onReAuth(email, password)
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { onDismissRequest() }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun SelectPlayListDialog(
+    playlists: List<String>,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    var selectedPlaylist by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        iconContentColor = Color.White,
+        containerColor = Color(0xFF121212),
+        textContentColor = Color.White,
+        shape = MaterialTheme.shapes.small,
+        tonalElevation = 0.dp,
+        title = { Text("Select Playlist", color = Color.White) },
+        text = {
+            Column {
+                Text("Choose a playlist to add the song to", color = Color.White)
+                Spacer(modifier = Modifier.height(16.dp))
+                playlists.forEach { playlist ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .clickable {
+                                selectedPlaylist = playlist
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedPlaylist == playlist,
+                            onClick = { selectedPlaylist = playlist }
+                        )
+                        Text(playlist, color = Color.White)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF121212)
+                ),
+                border = BorderStroke(1.dp, Color.White),
+                onClick = {
+                    if (selectedPlaylist.isEmpty()) {
+                        Toast.makeText(context, "Please select a playlist", Toast.LENGTH_SHORT)
+                            .show()
+                    } else {
+                        onSelect(selectedPlaylist)
+                        onDismiss()
+                    }
+                }
+            ) {
+                Text("Select")
+            }
+        },
+        dismissButton = {
+            Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF121212)
+                ),
+                border = BorderStroke(1.dp, Color.White),
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+
+@Composable
+fun CreatePlayListDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+) {
+    var playlistName by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        iconContentColor = Color.White,
+        containerColor = Color(0xFF121212),
+        textContentColor = Color.White,
+        shape = MaterialTheme.shapes.small,
+        tonalElevation = 0.dp,
+        title = { Text("Create New Playlist", color = Color.White) },
+        text = {
+            Column {
+                TextField(
+                    value = playlistName,
+                    onValueChange = { playlistName = it },
+                    label = { Text("Playlist Name") }
+                )
+
+            }
+        },
+        confirmButton = {
+            Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF121212)
+                ),
+                border = BorderStroke(1.dp, Color.White),
+                onClick = {
+                    if (playlistName.isEmpty()) {
+                        Toast.makeText(context, "Please enter playlist name", Toast.LENGTH_SHORT)
+                            .show()
+                    } else {
+                        onCreate(playlistName)
+                        onDismiss()
+                    }
+                }) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF121212)
+                ),
+                border = BorderStroke(1.dp, Color.White),
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun MiniPlayer(
+    currentTrack: Song,
+    isPlaying: Boolean,
+    onPlayPauseClick: () -> Unit,
+    onTrackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(70.dp)
+            .background(Color(0xFF121212))
+            .clickable { onTrackClick() }
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Image(
+            painter = rememberAsyncImagePainter(
+                ImageRequest.Builder(LocalContext.current)
+                    .data(data = currentTrack.picture ?: "")
+                    .apply(block = fun ImageRequest.Builder.() {
+                        crossfade(true)
+                    }).build()
+            ),
+            contentDescription = "Playlist Cover",
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(50.dp)
+                .clip(shape = RoundedCornerShape(5.dp))
+                .width(70.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = currentTrack.title,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            currentTrack.artist?.let {
+                Text(
+                    text = it.name,
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        IconButton(onClick = onPlayPauseClick) {
+            androidx.compose.material3.Icon(
+                painter = painterResource(id = if (!isPlaying) R.drawable.play else R.drawable.pause),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
 
 @Composable
 fun ButtonComponent(
@@ -492,7 +753,8 @@ fun ImageBoxPlay(
 fun MyTextField(
     modifier: Modifier = Modifier,
     value: String,
-    onValueChange: (String) -> Unit) {
+    onValueChange: (String) -> Unit
+) {
 
     TextField(
         modifier = modifier
@@ -515,6 +777,52 @@ fun MyTextField(
         )
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PasswordTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isPassword: Boolean = false
+) {
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    Row(modifier = modifier) {
+        androidx.compose.material3.OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+            trailingIcon = {
+                if (isPassword) {
+                    val image = if (passwordVisible) {
+                        Icons.Filled.Visibility
+                    } else {
+                        Icons.Filled.VisibilityOff
+                    }
+
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(imageVector = image, contentDescription = null)
+                    }
+                }
+            },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = Color(0xFFFFFFFF),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = fontInter
+            ),
+            colors = TextFieldDefaults.textFieldColors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                containerColor = Color(0xFF777777)
+            )
+        )
+    }
+}
+
 
 @Preview
 @Composable

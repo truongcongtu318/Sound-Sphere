@@ -1,8 +1,8 @@
 package com.example.soundsphere.ui.profile
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +19,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -34,33 +44,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.soundsphere.R
 import com.example.soundsphere.navigation.NavigationRoutes
 import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ButtonComponent
+import com.example.soundsphere.ui.components.ReAuthDialog
 import com.example.soundsphere.ui.components.RoundAvatar
-import com.example.soundsphere.ui.login.LoginViewModel
-import com.example.soundsphere.ui.register.RegisterViewModel
+import com.example.soundsphere.ui.play.PlayViewModel
 import com.example.soundsphere.ui.theme.roboto
-import com.google.firebase.Firebase
+import com.example.soundsphere.utils.Resource
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
+@OptIn(DelicateCoroutinesApi::class)
 @SuppressLint(
     "UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition",
-    "LogNotTimber"
+    "LogNotTimber", "UnrememberedMutableState"
 )
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel,
     authViewModel: AuthViewModel,
+    playViewModel: PlayViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    val profileState = viewModel.profileState.collectAsState()
-     val context = LocalContext.current
+    val context = LocalContext.current
+    var showDialog = mutableStateOf(false)
+    val showDialogReAuth = mutableStateOf(false)
+
+    val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+    val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
     Scaffold(
         modifier = modifier
             .fillMaxSize(),
@@ -84,20 +105,20 @@ fun ProfileScreen(
                     fontSize = 30.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Log.d("Profile", "ProfileScreen: ${profileState.value.success?.email}")
 
             }
             Column(
                 modifier = modifier
                     .fillMaxWidth()
-                    .padding(top = 70.dp),
+                    .padding(top = 36.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (user != null) {
                     RoundAvatar(
-                        imageUrl = user.photoUrl.toString(),
-                        modifier = modifier.size(120.dp)
+                        imageUrl = (user.photoUrl
+                            ?: "https://inkythuatso.com/uploads/thumbnails/800/2023/03/9-anh-dai-dien-trang-inkythuatso-03-15-27-03.jpg").toString(),
+                        modifier = modifier.size(90.dp)
                     ) {
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -159,14 +180,127 @@ fun ProfileScreen(
                 colorText = Color(0xFF121212),
             ) {
                 authViewModel.logout()
-//                navController.navigate(NavigationRoutes.Login.route)
                 Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
                 navController.navigate(NavigationRoutes.Login.route) {
-                    popUpTo(0) { inclusive = true } // Xóa toàn bộ stack để không quay lại trang Home
+                    popUpTo(0) { inclusive = true }
                 }
             }
+            Spacer(modifier = Modifier.height(20.dp))
 
+            ButtonComponent(
+                value = "Delete Account",
+                color = Color(0x80FFFFFF),
+                colorText = Color(0xFF121212),
+            ) {
+                showDialog.value = true
+            }
+
+
+            DeleteConfirmationDialog(
+                showDialog = showDialog,
+                onConfirm = {
+                    showDialog.value = false
+                    showDialogReAuth.value = true
+                },
+                onDismiss = {
+                    showDialog.value = false
+                }
+            )
+            ReAuthDialog(
+                onReAuth = { email, password ->
+                    authViewModel.deleteUser(email, password, {
+                        navController.navigate(NavigationRoutes.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                        Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
+                    }, { exception ->
+                        Toast.makeText(context, exception.message, Toast.LENGTH_SHORT).show()
+                    })
+            }, showDialog = showDialogReAuth) {
+                showDialogReAuth.value = false
+            }
         }
+    }
+}
+
+@SuppressLint("UnrememberedMutableState")
+@Composable
+fun DeleteConfirmationDialog(
+    showDialog: MutableState<Boolean>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = { onDismiss() },
+            iconContentColor = Color.White,
+            containerColor = Color(0xFF121212),
+            textContentColor = Color.White,
+            shape = MaterialTheme.shapes.small,
+            tonalElevation = 0.dp,
+            title = {
+                Text(
+                    "Confirmation deletion", color = Color.White,
+                    fontSize = 20.sp,
+                    fontFamily = roboto,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to delete your account?",
+                    color = Color(0x80FFFFFF),
+                    fontSize = 16.sp,
+                    fontFamily = roboto,
+                    fontWeight = FontWeight.Medium,
+                )
+            },
+
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onConfirm()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF121212)
+                    ),
+                    border = BorderStroke(1.dp, Color.White),
+                    modifier = Modifier
+                        .padding(15.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        "Delete",
+                        color = Color(0x80FFFFFF),
+                        fontSize = 16.sp,
+                        fontFamily = roboto,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { onDismiss() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF121212)
+                    ),
+                    border = BorderStroke(1.dp, Color.White),
+                    modifier = Modifier
+                        .padding(horizontal = 15.dp, vertical = 5.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        "Cancel",
+                        color = Color(0x80FFFFFF),
+                        fontSize = 16.sp,
+                        fontFamily = roboto,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        )
     }
 }
 

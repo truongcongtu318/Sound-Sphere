@@ -81,15 +81,26 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun deleteAccount(): Flow<Resource<Void>> {
+    override fun deleteAccount(): Flow<Resource<Boolean>> {
         return flow {
             emit(Resource.Loading())
-            val result = firebaseAuth.currentUser!!.delete().await()
-            emit(Resource.Success(result))
+            val result = FirebaseAuth.getInstance().currentUser!!.delete().await()
+            emit(Resource.Success(true))
         }.catch {
             emit(Resource.Error(it.message.toString()))
         }
     }
+
+    override fun logout(): Flow<Resource<Boolean>> {
+        return flow {
+            emit(Resource.Loading())
+            firebaseAuth.signOut()
+            emit(Resource.Success(true))
+        }.catch {
+            emit(Resource.Error(it.message.toString()))
+        }
+    }
+
 
     override fun sendEmailVerification(): Flow<Resource<Boolean>> {
         return flow {
@@ -113,14 +124,18 @@ class AuthRepositoryImpl @Inject constructor(
         } else {
             emit(false)
         }
-    }.catch { e ->
+    }.catch {
         emit(false)
     }
 
     override fun isUserAuthenticated(): Flow<Boolean> = flow {
         val user = FirebaseAuth.getInstance().currentUser
-        emit(user != null)
-    }.catch { e ->
+        if (user != null) {
+            emit(true)
+        } else {
+            emit(false)
+        }
+    }.catch {
         emit(false)
     }
 }

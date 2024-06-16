@@ -1,11 +1,17 @@
 package com.example.soundsphere.player.service
 
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.soundsphere.ui.play.PlayViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -15,10 +21,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class JetAudioServiceHandler @Inject constructor(
-    private val exoPlayer: ExoPlayer
+    private var exoPlayer: ExoPlayer,
 ) : Player.Listener {
     private val _audioState = MutableStateFlow<JetAudioState>(JetAudioState.Initial)
     val audioState: StateFlow<JetAudioState> = _audioState.asStateFlow()
@@ -35,17 +42,14 @@ class JetAudioServiceHandler @Inject constructor(
     }
 
     fun setMediaItems(mediaItems: List<MediaItem>, startIndex: Int) {
+        exoPlayer.repeatMode = Player.REPEAT_MODE_ALL
         exoPlayer.setMediaItems(mediaItems, startIndex, 0)
         exoPlayer.prepare()
         exoPlayer.play()
     }
 
     fun clearExoPlayer() {
-        exoPlayer.let {
-            it.stop()
-            it.clearMediaItems()
-            it.release()
-        }
+        exoPlayer.release()
     }
 
 
@@ -110,13 +114,13 @@ class JetAudioServiceHandler @Inject constructor(
             ExoPlayer.STATE_READY -> _audioState.value = JetAudioState.Ready(exoPlayer.duration)
             Player.STATE_ENDED -> {
                 val currentIndex = exoPlayer.currentWindowIndex
-                if (currentIndex < exoPlayer.mediaItemCount - 1) {
+                val lastIndex = exoPlayer.mediaItemCount - 1
+                if (currentIndex < lastIndex) {
                     exoPlayer.seekTo(currentIndex + 1, C.TIME_UNSET)
-                    exoPlayer.playWhenReady = true
                 } else {
                     exoPlayer.seekTo(0, C.TIME_UNSET)
-                    exoPlayer.playWhenReady = true
                 }
+                exoPlayer.playWhenReady = true
             }
         }
     }

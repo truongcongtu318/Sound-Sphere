@@ -13,7 +13,8 @@ interface AuthRepository {
     fun loginWithFacebook(token : AccessToken) : Flow<Resource<AuthResult>>
     fun registerWithEmailPassword(email: String, password: String) : Flow<Resource<AuthResult>>
     fun loginWithEmailPassword(email: String, password: String) : Flow<Resource<AuthResult>>
-    fun deleteAccount() : Flow<Resource<Void>>
+    fun deleteAccount() : Flow<Resource<Boolean>>
+    fun logout() : Flow<Resource<Boolean>>
     fun sendEmailVerification() : Flow<Resource<Boolean>>
     fun checkEmailVerified(): Flow<Boolean>
     fun isUserAuthenticated(): Flow<Boolean>

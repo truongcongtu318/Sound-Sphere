@@ -1,9 +1,7 @@
 package com.example.soundsphere.ui.search
 
 import android.annotation.SuppressLint
-import android.app.appsearch.SearchResults
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -58,21 +54,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.soundsphere.R
-import com.example.soundsphere.data.dtodeezer.chart.Artists
-import com.example.soundsphere.data.dtodeezer.search.searchAlbum.Data
+import com.example.soundsphere.data.model.Album
+import com.example.soundsphere.data.model.Artist
+import com.example.soundsphere.data.model.Playlist
+import com.example.soundsphere.data.model.Song
 import com.example.soundsphere.navigation.NavigationRoutes
+import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ImageBoxExtraLarge
-import com.example.soundsphere.ui.components.ImageBoxLarge
 import com.example.soundsphere.ui.components.ImageBoxMedium
-import com.example.soundsphere.ui.home.HomeViewModel
-import com.example.soundsphere.ui.home.encodeUrl
+import com.example.soundsphere.ui.firestore.FireStoreViewModel
+import com.example.soundsphere.ui.play.PlayViewModel
 import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
+import com.example.soundsphere.utils.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -80,8 +78,9 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun SearchScreen(
-    viewModel: HomeViewModel,
-    searchViewModel: SearchViewModel,
+    fireStoreViewModel: FireStoreViewModel,
+    playViewModel: PlayViewModel,
+    authViewModel: AuthViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
@@ -89,26 +88,31 @@ fun SearchScreen(
         mutableStateOf("")
     }
 
-    val searchAlbumState = searchViewModel.searchAlbumState.collectAsState()
-    val searchTrackState = searchViewModel.searchTrackState.collectAsState()
-    val searchArtistState = searchViewModel.searchArtistState.collectAsState()
-    val searchPlayListState = searchViewModel.searchPlayListState.collectAsState()
-    val chartState by viewModel.chartState.collectAsState()
-    val genreState by searchViewModel.genresState.collectAsState()
-    val chartArtist = chartState.isSuccessful?.artists
-    val genres = genreState.isSuccessful
+    val allArtists = fireStoreViewModel.allArtists.collectAsState().value
+    val albumByNames = fireStoreViewModel.albumsByName.collectAsState().value
+    val artistByNames = fireStoreViewModel.artistsByName.collectAsState().value
+    val songByNames = fireStoreViewModel.songsByName.collectAsState().value
+
+    val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+    val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
+    }
+
+    LaunchedEffect(Unit) {
+        fireStoreViewModel.getAllArtists()
+    }
+
+
     LaunchedEffect(valueSearch.value) {
         if (valueSearch.value.isNotEmpty()) {
-            searchViewModel.getSearchAlbum(q = valueSearch.value)
-            searchViewModel.getSearchTrack(q = valueSearch.value)
-            searchViewModel.getSearchArtist(q = valueSearch.value)
-            searchViewModel.getSearchPlayList(q = valueSearch.value)
+            fireStoreViewModel.getSongsByName(valueSearch.value)
+            fireStoreViewModel.getAlbumsByName(valueSearch.value)
+            fireStoreViewModel.getArtistsByName(valueSearch.value)
         }
     }
-    val searchAlbum = searchAlbumState.value.isSuccessful?.data
-    val searchArtists = searchArtistState.value.isSuccessful?.data
-    val searchTrack = searchTrackState.value.isSuccessful?.data
-    val searchPlayList = searchPlayListState.value.isSuccessful?.data
+
 
 
     Scaffold(
@@ -118,12 +122,11 @@ fun SearchScreen(
     ) {
         Column(
             modifier = modifier
-                .fillMaxSize()
-                .background(color = Color(0xFF121212)),
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (chartArtist == null) {
+            if (allArtists is Resource.Loading) {
                 CircularProgressIndicator()
             }
         }
@@ -142,18 +145,23 @@ fun SearchScreen(
             )
             Spacer(modifier = Modifier.height(30.dp))
 
-            if (valueSearch.value.isNotEmpty() && (searchAlbum != null || searchArtists != null || searchTrack != null || searchPlayList != null)) {
+            if (valueSearch.value.isNotEmpty() && (songByNames.data != null || albumByNames.data != null || artistByNames.data != null)) {
                 SearchResults(
-                    searchAlbum = searchAlbum,
-                    searchArtists = searchArtists,
-                    searchTrack = searchTrack,
-                    searchPlayList = searchPlayList,
+                    searchAlbum = albumByNames.data,
+                    searchArtists = artistByNames.data,
+                    searchSong = songByNames.data,
+                    searchPlayList = emptyList(),
                     modifier = modifier,
+                    playViewModel = playViewModel,
                     navController = navController,
                     scope = rememberCoroutineScope()
                 )
-            } else if (chartArtist != null) {
-                TopArtist(modifier, chartArtist)
+            } else if (allArtists.data != null) {
+                allArtists.data.let {
+                    if (it != null) {
+                        TopArtist(modifier, it,navController = navController)
+                    }
+                }
                 Spacer(modifier = Modifier.height(30.dp))
                 Text(
                     modifier = modifier.padding(bottom = 20.dp),
@@ -174,14 +182,14 @@ fun SearchScreen(
                     verticalItemSpacing = 10.dp
 
                 ) {
-                    if (genres != null) {
-                        items(genres.data) { genres ->
-                            ImageBoxBrowse(
-                                imageUrl = genres.picture_big,
-                                text = genres.name
-                            )
-                        }
-                    }
+//                    if (genres != null) {
+//                        items(genres.data) { genres ->
+//                            ImageBoxBrowse(
+//                                imageUrl = genres.picture_big,
+//                                text = genres.name
+//                            )
+//                        }
+//                    }
                 }
             }
         }
@@ -250,7 +258,9 @@ private fun ImageBoxBrowse(
 @Composable
 private fun TopArtist(
     modifier: Modifier,
-    topArtist: Artists
+    allArtists: List<Artist>,
+    scope: CoroutineScope = rememberCoroutineScope(),
+    navController: NavHostController
 ) {
     Row(
         modifier = modifier
@@ -279,10 +289,16 @@ private fun TopArtist(
             .fillMaxWidth()
             .padding(top = 20.dp)
     ) {
-        items(topArtist.data) { artist ->
+        items(allArtists) { artist ->
             RoundArtist(
-                imageUrl = artist.picture_big,
-                name = artist.name
+                imageUrl = artist.picture,
+                name = artist.name,
+                modifier = modifier
+                    .clickable {
+                        scope.launch {
+                            navController.navigate("songlistartist/${artist.id}")
+                        }
+                    }
             )
         }
     }
@@ -368,16 +384,15 @@ fun RoundArtist(
 
 @Composable
 fun SearchResults(
-    searchAlbum: List<Data>?,
-    searchArtists: List<com.example.soundsphere.data.dtodeezer.search.searchArtist.Data>?,
-    searchTrack: List<com.example.soundsphere.data.dtodeezer.search.searchTrack.Data>?,
-    searchPlayList: List<com.example.soundsphere.data.dtodeezer.search.searchPlayList.Data>?,
+    searchAlbum: List<Album>?,
+    searchArtists: List<Artist>?,
+    searchSong: List<Song>?,
+    searchPlayList: List<Playlist>?,
+    playViewModel: PlayViewModel,
     modifier: Modifier = Modifier,
     navController: NavHostController,
     scope: CoroutineScope
 ) {
-    val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-    val lastUrl = "/500x500-000000-80-0-0.jpg"
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -398,21 +413,15 @@ fun SearchResults(
                     contentPadding = PaddingValues(vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-                    val lastUrl = "/500x500-000000-80-0-0.jpg"
 
                     items(it) { album ->
 
                         ImageBoxExtraLarge(
-                            imageUrl = baseUrl + album.md5_image + lastUrl,
+                            imageUrl = album.picture,
                             text = album.title
                         ) {
-                            val urlTrackList = album.tracklist
-                            val urlAlbum = album.id
-                            val encodeUrlTrackList = encodeUrl(urlTrackList)
-
                             scope.launch {
-                                navController.navigate("songlist/$encodeUrlTrackList/$urlAlbum")
+                                navController.navigate("songlist/${album.id}")
                             }
                         }
                     }
@@ -436,15 +445,11 @@ fun SearchResults(
                 ) {
                     items(it) { artist ->
                         RoundArtist(
-                            imageUrl = artist.picture_big,
+                            imageUrl = artist.picture,
                             name = artist.name,
                             modifier = modifier.clickable {
-                                val urlTrackList = artist.tracklist
-                                val encodeUrlTrackList = encodeUrl(urlTrackList)
                                 scope.launch {
-                                    scope.launch {
-                                        navController.navigate("songlistartist/$encodeUrlTrackList")
-                                    }
+                                    navController.navigate("songlistartist/${artist.id}")
                                 }
                             }
                         )
@@ -454,9 +459,9 @@ fun SearchResults(
         }
 
         item {
-            searchTrack?.let {
+            searchSong?.let {
                 Text(
-                    text = "Tracks",
+                    text = "Songs",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         color = Color.White,
                         fontSize = 18.sp,
@@ -469,12 +474,13 @@ fun SearchResults(
                     contentPadding = PaddingValues(vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(searchTrack) { track ->
+                    items(searchSong) { song ->
                         ImageBoxMedium(
-                            imageUrl = baseUrl + track.md5_image + lastUrl,
-                            text = track.title_short
+                            imageUrl = song.picture,
+                            text = song.title
                         ) {
                             scope.launch {
+                                playViewModel.setCurrentTrackSelected(song)
                                 navController.navigate(NavigationRoutes.PlayTrack.route)
                             }
                         }
@@ -483,39 +489,39 @@ fun SearchResults(
             }
         }
 
-        item {
-            searchPlayList?.let {
-                Text(
-                    text = "Playlists",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = fontInter
-                    )
-                )
-                LazyRow(
-                    Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(searchPlayList) { playlist ->
-                        ImageBoxLarge(
-                            imageUrl = playlist.picture_big,
-                            text = playlist.title
-                        ) {
-                            val urlTrackList = playlist.tracklist
-                            val idPlayList = playlist.id
-                            val encodeUrlTrackList = encodeUrl(urlTrackList)
-
-                            scope.launch {
-                                navController.navigate("songlistplaylist/$encodeUrlTrackList/$idPlayList")
-                            }
-                        }
-                    }
-                }
-            }
-        }
+//        item {
+//            searchPlayList?.let {
+//                Text(
+//                    text = "Playlists",
+//                    style = MaterialTheme.typography.bodyLarge.copy(
+//                        color = Color.White,
+//                        fontSize = 18.sp,
+//                        fontWeight = FontWeight.Bold,
+//                        fontFamily = fontInter
+//                    )
+//                )
+//                LazyRow(
+//                    Modifier.fillMaxWidth(),
+//                    contentPadding = PaddingValues(vertical = 10.dp),
+//                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+//                ) {
+//                    items(searchPlayList) { playlist ->
+//                        ImageBoxLarge(
+//                            imageUrl = playlist.picture_big,
+//                            text = playlist.title
+//                        ) {
+//                            val urlTrackList = playlist.tracklist
+//                            val idPlayList = playlist.id
+//                            val encodeUrlTrackList = encodeUrl(urlTrackList)
+//
+//                            scope.launch {
+//                                navController.navigate("songlistplaylist/$encodeUrlTrackList/$idPlayList")
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
 }
 

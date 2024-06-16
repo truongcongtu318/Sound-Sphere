@@ -1,61 +1,71 @@
 package com.example.soundsphere.ui.home
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
-import com.example.soundsphere.data.dtodeezer.albumtracks.Data
-import com.example.soundsphere.data.dtodeezer.chart.Album
-import com.example.soundsphere.data.dtodeezer.chart.Albums
-import com.example.soundsphere.data.dtodeezer.chart.Artists
-import com.example.soundsphere.data.dtodeezer.chart.DataXXX
-import com.example.soundsphere.data.dtodeezer.chart.DataXXXX
-import com.example.soundsphere.data.dtodeezer.chart.Playlists
-import com.example.soundsphere.data.dtodeezer.chart.Podcasts
-import com.example.soundsphere.data.dtodeezer.chart.Tracks
-import com.example.soundsphere.data.model.Track
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import com.example.soundsphere.data.model.Artist
 import com.example.soundsphere.navigation.NavigationRoutes
+import com.example.soundsphere.ui.auth.AuthViewModel
 import com.example.soundsphere.ui.components.ImageBoxExtraLarge
 import com.example.soundsphere.ui.components.ImageBoxLarge
 import com.example.soundsphere.ui.components.ImageBoxMedium
 import com.example.soundsphere.ui.components.RoundAvatar
+import com.example.soundsphere.ui.firestore.FireStoreViewModel
 import com.example.soundsphere.ui.play.PlayViewModel
-import com.example.soundsphere.ui.profile.ProfileState
-import com.example.soundsphere.ui.profile.ProfileViewModel
+import com.example.soundsphere.ui.play.UIEvents
+import com.example.soundsphere.ui.theme.fontInter
 import com.example.soundsphere.ui.theme.roboto
+import com.example.soundsphere.utils.Resource
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -70,49 +80,49 @@ import java.nio.charset.StandardCharsets
     "UnusedMaterial3ScaffoldPaddingParameter"
 )
 
-fun DataXXXX.toTrack(): Track {
-    return Track(
-        id = this.id.toString(),
-        artist = this.artist,
-        album = this.album,
-        duration = (this.duration ?: 0).toString(),
-        link = this.link ?: "",
-        md5_image = this.md5_image ?: "",
-        preview = this.preview ?: "",
-        rank = (this.rank ?: 0).toString(),
-        title = this.title ?: "",
-        title_short = this.title_short ?: "",
-        title_version = this.title_version ?: "",
-        track_position = this.position,
-        type = this.type ?: ""
-    )
-}
 
-@OptIn(ExperimentalFoundationApi::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "LogNotTimber")
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel,
-    profileViewModel: ProfileViewModel,
     playViewModel: PlayViewModel,
+    authViewModel: AuthViewModel,
     navController: NavHostController,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val profileState = profileViewModel.profileState.collectAsState()
-    val chartState = viewModel.chartState.collectAsState()
 
-    val chartTracks = chartState.value.isSuccessful?.tracks
-    val chartAlbums = chartState.value.isSuccessful?.albums
-    val chartPlaylists = chartState.value.isSuccessful?.playlists
-    val chartArtists = chartState.value.isSuccessful?.artists
 
-    if (chartTracks != null) {
-        playViewModel.trackList = chartTracks.data.map {
-            it.toTrack()
-        }
+    val fireStoreViewModel: FireStoreViewModel = hiltViewModel()
+
+    val songState by fireStoreViewModel.allSongs.collectAsState()
+    val albumState by fireStoreViewModel.allAlbums.collectAsState()
+    val artistState by fireStoreViewModel.allArtists.collectAsState()
+    val songByGenreId by fireStoreViewModel.songsByGenreId.collectAsState()
+
+    val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
+    val isUserAuthenticated by authViewModel.isUserAuthenticated.collectAsState()
+    authViewModel.checkUserAuthentication()
+    if (isUserAuthenticated) {
+        authViewModel.checkEmailVerification()
     }
+
+    Log.d("isEmailVerified", isEmailVerified.toString())
+    LaunchedEffect(Unit) {
+        fireStoreViewModel.getAllSongs()
+        fireStoreViewModel.getAllAlbums()
+        fireStoreViewModel.getAllArtists()
+    }
+
+
+    if (songState.data != null) {
+        playViewModel.trackList = songState.data!!
+    }
+
+
+    var selectedTabIndex by remember { mutableStateOf(0) }
+
+    val tabTitles = listOf("For you", "Ballad", "Pop", "Rap")
     Scaffold(
         modifier = modifier
             .fillMaxSize(),
@@ -124,7 +134,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (chartState.value.isLoading) {
+            if (artistState is Resource.Loading || albumState is Resource.Loading || songState is Resource.Loading) {
                 CircularProgressIndicator()
             }
         }
@@ -137,98 +147,386 @@ fun HomeScreen(
                 TopUpHome(modifier = modifier, navController = navController)
             }
             item {
-                Column(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 15.dp)
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    modifier = Modifier
+                        .background(Color(0xFF121212))
+                        .fillMaxWidth(),
+                    indicator = {},
+                    divider = {},
+                    containerColor = Color(0xFF121212),
                 ) {
-                    Text(
-                        text = "Top Tracks",
-                        color = Color(0xBFFFFFFF),
-                        fontFamily = roboto,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 27.sp,
-                    )
-                    LazyRow(
-                        Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        val baseUrl = "https://e-cdns-images.dzcdn.net/images/cover/"
-                        val lastUrl = "/500x500-000000-80-0-0.jpg"
-                        Log.d("URL", "TopTrackList: ${
-                            chartTracks?.data?.map {
-                                it.toTrack()
+                    tabTitles.forEachIndexed { index, title ->
+                        Tab(
+                            selected = false,
+                            onClick = { selectedTabIndex = index },
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp, vertical = 10.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (selectedTabIndex == index) Color.Gray else Color(
+                                        0xFF121212
+                                    )
+                                )
+                                .clickable { selectedTabIndex = index }
+                                .size(37.dp),
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = roboto,
+                                    maxLines = 1,
+                                    color = if (selectedTabIndex == index) Color(0xFF121212) else Color.Gray,
+                                )
                             }
-                        }")
-                        if (chartTracks != null) {
-                            items(chartTracks.data) { track ->
-                                if (track.preview == "") return@items
-                                ImageBoxExtraLarge(
-                                    imageUrl = baseUrl + track.md5_image + lastUrl,
-                                    text = track.title
-                                ) {
-                                    scope.launch {
-                                        navController.navigate(NavigationRoutes.PlayTrack.route)
-                                        playViewModel.setCurrentTrackSelected(track.toTrack())
+                        )
+                    }
+                }
+
+            }
+
+
+            when (selectedTabIndex) {
+                0 -> {
+                    item {
+                        Column(
+                            modifier = modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 15.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = "Featuring Today",
+                                color = Color(0xBFFFFFFF),
+                                fontFamily = roboto,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 27.sp,
+                            )
+                            Spacer(modifier = modifier.height(10.dp))
+                            LazyRow(
+                                Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (songState.data != null) {
+                                    items(songState.data!!) { song ->
+                                        if (song.url == "") return@items
+                                        ImageBoxExtraLarge(
+                                            imageUrl = song.picture,
+                                            text = song.title
+                                        ) {
+                                            scope.launch {
+                                                playViewModel.setCurrentTrackSelected(
+                                                    song
+                                                )
+                                                navController.navigate(NavigationRoutes.PlayTrack.route)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+
+                    }
+                    item {
+                        TopAlbumList(modifier, albumState.data, navController, scope)
+                    }
+//                    item {
+//                        TopPlaylistsList(modifier, chartPlaylists, navController, scope)
+//                    }
+                    item {
+                        artistState.data?.let { it1 ->
+                            TopArtistList(
+                                modifier,
+                                it1, navController, scope
+                            )
+                        }
                     }
                 }
 
-            }
-            item {
-                TopAlbumList(modifier, chartAlbums, navController, scope)
-            }
-            item {
-                TopPlaylistsList(modifier, chartPlaylists, navController, scope)
-            }
-            item {
-                TopArtistList(modifier, chartArtists, navController, scope)
-            }
-        }
-    }
-}
+                1 -> item {
+                    LaunchedEffect(Unit) {
+                        fireStoreViewModel.getSongsByGenreId("balad")
+                    }
 
-
-@Composable
-private fun TopArtistList(
-    modifier: Modifier = Modifier,
-    chartArtists: Artists?,
-    navController: NavHostController,
-    scope: CoroutineScope,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 15.dp)
-    ) {
-        Text(
-            text = "Top Artists",
-            color = Color(0xBFFFFFFF),
-            fontFamily = roboto,
-            fontWeight = FontWeight.Medium,
-            fontSize = 27.sp,
-        )
-
-        LazyRow(
-            Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            if (chartArtists != null) {
-                items(chartArtists.data) { artist ->
-                    ImageBoxLarge(
-                        imageUrl = artist.picture_xl,
-                        text = artist.name
+                    Column(
+                        modifier = modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth()
+                            .padding(15.dp)
                     ) {
-                        val urlTrackList = artist.tracklist
-                        val encodeUrlTrackList = encodeUrl(urlTrackList)
-                        scope.launch {
-                            scope.launch {
-                                navController.navigate("songlistartist/$encodeUrlTrackList")
+                        Text(
+                            text = "Ballad",
+                            color = Color(0xBFFFFFFF),
+                            fontFamily = roboto,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 27.sp,
+                        )
+                        Spacer(modifier = modifier.height(10.dp))
+
+                        LazyColumn(
+                            modifier = modifier
+                                .fillParentMaxSize(),
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            val songs = songByGenreId.data
+                            items(songs.orEmpty()) { song ->
+                                if (song.url == "") return@items
+                                Row(
+                                    modifier = modifier
+                                        .fillMaxWidth()
+                                        .height(70.dp)
+                                        .padding(horizontal = 20.dp)
+                                        .clickable {
+                                            playViewModel.setCurrentTrackSelected(song)
+                                            playViewModel.onUiEvent(UIEvents.PlayPause)
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(15.dp)
+                                ) {
+
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            ImageRequest.Builder(LocalContext.current)
+                                                .data(data = song.picture)
+                                                .apply(block = fun ImageRequest.Builder.() {
+                                                    crossfade(true)
+                                                }).build()
+                                        ),
+                                        contentDescription = "Playlist Cover",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = modifier
+                                            .size(50.dp)
+                                            .clip(shape = RoundedCornerShape(5.dp))
+                                            .clickable {
+                                                navController.navigate(NavigationRoutes.PlayTrack.route)
+                                            }
+                                    )
+
+                                    Column(
+                                        modifier = modifier
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(1f),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Text(
+                                            text = song.title,
+                                            color = Color(0xFFFFFFFF),
+                                            fontWeight = FontWeight.Medium,
+                                            fontFamily = fontInter,
+                                            fontSize = 16.sp,
+                                            letterSpacing = 1.sp
+                                        )
+
+                                        song.artist?.let { it1 ->
+                                            Text(
+                                                text = it1.name,
+                                                color = Color(0x80FFFFFF),
+                                                fontWeight = FontWeight.Medium,
+                                                fontFamily = fontInter,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 16.sp,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+
+                }
+                2 -> item {
+                    LaunchedEffect(Unit) {
+                        fireStoreViewModel.getSongsByGenreId("pop")
+                    }
+                    Column(
+                        modifier = modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth()
+                            .padding(15.dp)
+                    ) {
+                        Text(
+                            text = "Pop",
+                            color = Color(0xBFFFFFFF),
+                            fontFamily = roboto,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 27.sp,
+                        )
+                        Spacer(modifier = modifier.height(10.dp))
+
+                        LazyColumn(
+                            modifier = modifier
+                                .fillParentMaxSize(),
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            val songs = songByGenreId.data
+                            items(songs.orEmpty()) { song ->
+                                if (song.url == "") return@items
+                                Row(
+                                    modifier = modifier
+                                        .fillMaxWidth()
+                                        .height(70.dp)
+                                        .padding(horizontal = 20.dp)
+                                        .clickable {
+                                            playViewModel.setCurrentTrackSelected(song)
+                                            playViewModel.onUiEvent(UIEvents.PlayPause)
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(15.dp)
+                                ) {
+
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            ImageRequest.Builder(LocalContext.current)
+                                                .data(data = song.picture)
+                                                .apply(block = fun ImageRequest.Builder.() {
+                                                    crossfade(true)
+                                                }).build()
+                                        ),
+                                        contentDescription = "Playlist Cover",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = modifier
+                                            .size(50.dp)
+                                            .clip(shape = RoundedCornerShape(5.dp))
+                                            .clickable {
+                                                navController.navigate(NavigationRoutes.PlayTrack.route)
+                                            }
+                                    )
+
+                                    Column(
+                                        modifier = modifier
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(1f),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Text(
+                                            text = song.title,
+                                            color = Color(0xFFFFFFFF),
+                                            fontWeight = FontWeight.Medium,
+                                            fontFamily = fontInter,
+                                            fontSize = 16.sp,
+                                            letterSpacing = 1.sp
+                                        )
+
+                                        song.artist?.let { it1 ->
+                                            Text(
+                                                text = it1.name,
+                                                color = Color(0x80FFFFFF),
+                                                fontWeight = FontWeight.Medium,
+                                                fontFamily = fontInter,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 16.sp,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+                3 -> item {
+                    LaunchedEffect(Unit) {
+                        fireStoreViewModel.getSongsByGenreId("rap")
+                    }
+                    Column(
+                        modifier = modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth()
+                            .padding(15.dp)
+                    ) {
+                        Text(
+                            text = "Rap",
+                            color = Color(0xBFFFFFFF),
+                            fontFamily = roboto,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 27.sp,
+                        )
+                        Spacer(modifier = modifier.height(10.dp))
+
+                        LazyColumn(
+                            modifier = modifier
+                                .fillParentMaxSize(),
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            val songs = songByGenreId.data
+                            items(songs.orEmpty()) { song ->
+                                if (song.url == "") return@items
+                                Row(
+                                    modifier = modifier
+                                        .fillMaxWidth()
+                                        .height(70.dp)
+                                        .padding(horizontal = 20.dp)
+                                        .clickable {
+                                            playViewModel.setCurrentTrackSelected(song)
+                                            playViewModel.onUiEvent(UIEvents.PlayPause)
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(15.dp)
+                                ) {
+
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            ImageRequest.Builder(LocalContext.current)
+                                                .data(data = song.picture)
+                                                .apply(block = fun ImageRequest.Builder.() {
+                                                    crossfade(true)
+                                                }).build()
+                                        ),
+                                        contentDescription = "Playlist Cover",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = modifier
+                                            .size(50.dp)
+                                            .clip(shape = RoundedCornerShape(5.dp))
+                                            .clickable {
+                                                navController.navigate(NavigationRoutes.PlayTrack.route)
+                                            }
+                                    )
+
+                                    Column(
+                                        modifier = modifier
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(1f),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Text(
+                                            text = song.title,
+                                            color = Color(0xFFFFFFFF),
+                                            fontWeight = FontWeight.Medium,
+                                            fontFamily = fontInter,
+                                            fontSize = 16.sp,
+                                            letterSpacing = 1.sp
+                                        )
+
+                                        song.artist?.let { it1 ->
+                                            Text(
+                                                text = it1.name,
+                                                color = Color(0x80FFFFFF),
+                                                fontWeight = FontWeight.Medium,
+                                                fontFamily = fontInter,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 16.sp,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                    }
+                                }
+
                             }
                         }
                     }
@@ -238,10 +536,12 @@ private fun TopArtistList(
     }
 }
 
+
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun TopPlaylistsList(
-    modifier: Modifier,
-    chartPlaylists: Playlists?,
+private fun TopArtistList(
+    modifier: Modifier = Modifier,
+    allArtists: List<Artist>,
     navController: NavHostController,
     scope: CoroutineScope,
 ) {
@@ -251,30 +551,27 @@ private fun TopPlaylistsList(
             .padding(horizontal = 15.dp)
     ) {
         Text(
-            text = "Top Playlists",
+            text = "Artists",
             color = Color(0xBFFFFFFF),
             fontFamily = roboto,
             fontWeight = FontWeight.Medium,
             fontSize = 27.sp,
         )
+
         LazyRow(
             Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (chartPlaylists != null) {
-                items(chartPlaylists.data) { playlist ->
+            if (allArtists.isNotEmpty()) {
+                Log.d("allArtists", allArtists.toString())
+                items(allArtists) { artist ->
                     ImageBoxLarge(
-                        imageUrl = playlist.picture_big,
-                        text = playlist.title
+                        imageUrl = artist.picture,
+                        text = artist.name
                     ) {
-                        val urlTrackList = playlist.tracklist
-                        val idPlayList = playlist.id
-                        val encodeUrlTrackList = encodeUrl(urlTrackList)
-                        Log.d("URL", "TopPlaylistsList: $encodeUrlTrackList")
-
                         scope.launch {
-                            navController.navigate("songlistplaylist/$encodeUrlTrackList/$idPlayList")
+                            navController.navigate("songlistartist/${artist.id}")
                         }
                     }
                 }
@@ -283,10 +580,12 @@ private fun TopPlaylistsList(
     }
 }
 
+
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun TopAlbumList(
     modifier: Modifier,
-    chartAlbums: Albums?,
+    albums: List<com.example.soundsphere.data.model.Album>?,
     navController: NavHostController,
     scope: CoroutineScope,
 ) {
@@ -296,7 +595,7 @@ private fun TopAlbumList(
             .padding(horizontal = 15.dp)
     ) {
         Text(
-            text = "Top Albums",
+            text = "Albums",
             color = Color(0xBFFFFFFF),
             fontFamily = roboto,
             fontWeight = FontWeight.Medium,
@@ -308,18 +607,15 @@ private fun TopAlbumList(
             contentPadding = PaddingValues(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (chartAlbums != null) {
-                items(chartAlbums.data) { album ->
+            if (albums != null) {
+                items(albums) { album ->
+                    Log.d("album", album.toString())
                     ImageBoxMedium(
-                        imageUrl = album.cover_big,
+                        imageUrl = album.picture,
                         text = album.title
                     ) {
-                        val urlTrackList = album.tracklist
-                        val urlAlbum = album.id
-                        val encodeUrlTrackList = encodeUrl(urlTrackList)
-
                         scope.launch {
-                            navController.navigate("songlist/$encodeUrlTrackList/$urlAlbum")
+                            navController.navigate("songlist/${album.id}")
                         }
                     }
                 }
@@ -384,8 +680,14 @@ private fun TopUpHome(
                 contentDescription = "Notifications",
                 tint = Color(0xBFFFFFFF)
             )
-            RoundAvatar(imageUrl = user?.photoUrl.toString()) {
+
+
+            RoundAvatar(
+                imageUrl = (user?.photoUrl
+                    ?: "https://inkythuatso.com/uploads/thumbnails/800/2023/03/9-anh-dai-dien-trang-inkythuatso-03-15-27-03.jpg").toString()
+            ) {
                 navController.navigate(NavigationRoutes.Profile.route)
+
             }
         }
 
